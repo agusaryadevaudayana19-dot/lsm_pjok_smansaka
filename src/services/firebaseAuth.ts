@@ -9,6 +9,7 @@ import {
   browserLocalPersistence,
   browserSessionPersistence,
   inMemoryPersistence,
+  browserPopupRedirectResolver,
   setPersistence,
   Auth,
   User as FirebaseUser,
@@ -17,13 +18,13 @@ import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-// Use browserLocalPersistence and inMemoryPersistence instead of indexedDBLocalPersistence
-// to completely prevent "Failed to execute 'transaction' on 'IDBDatabase': The database connection is closing"
-// errors that occur in sandboxed iframes or partitioned storage.
+// Use browserPopupRedirectResolver and safe non-IndexedDB persistence
+// to prevent "auth/argument-error" and IndexedDB closing errors in iframes
 export const auth: Auth = (() => {
   try {
     return initializeAuth(app, {
       persistence: [browserLocalPersistence, browserSessionPersistence, inMemoryPersistence],
+      popupRedirectResolver: browserPopupRedirectResolver,
     });
   } catch {
     return getAuth(app);
@@ -62,18 +63,16 @@ export const signInWithGoogle = async (): Promise<{
   try {
     isSigningIn = true;
 
-    // Enforce persistence without IndexedDB
+    // Enforce persistence if supported
     try {
-      await setPersistence(auth, browserLocalPersistence);
-    } catch {
-      try {
-        await setPersistence(auth, inMemoryPersistence);
-      } catch {
-        // ignore
+      if (typeof window !== 'undefined') {
+        await setPersistence(auth, browserLocalPersistence).catch(() => {});
       }
+    } catch {
+      // ignore
     }
 
-    const result = await signInWithPopup(auth, provider);
+    const result = await signInWithPopup(auth, provider, browserPopupRedirectResolver);
     const credential = GoogleAuthProvider.credentialFromResult(result);
     if (!credential?.accessToken) {
       throw new Error('Gagal memperoleh akses token Google');
@@ -94,6 +93,12 @@ export const signInWithGoogle = async (): Promise<{
     if (err?.code === 'auth/cancelled-popup-request') {
       throw new Error('Proses login Google dibatalkan karena ada permintaan baru.');
     }
+    if (err?.code === 'auth/unauthorized-domain') {
+      throw new Error('Domain belum diotorisasi di Firebase Authentication Console.');
+    }
+    if (err?.code === 'auth/argument-error') {
+      throw new Error('Konfigurasi autentikasi peramban tidak sesuai. Silakan buka aplikasi di tab baru.');
+    }
 
     // Handle IDBDatabase connection closing error
     if (
@@ -101,8 +106,8 @@ export const signInWithGoogle = async (): Promise<{
       (err.message.includes('IDBDatabase') || err.message.includes('database connection is closing'))
     ) {
       try {
-        await setPersistence(auth, inMemoryPersistence);
-        const retryResult = await signInWithPopup(auth, provider);
+        await setPersistence(auth, inMemoryPersistence).catch(() => {});
+        const retryResult = await signInWithPopup(auth, provider, browserPopupRedirectResolver);
         const retryCred = GoogleAuthProvider.credentialFromResult(retryResult);
         if (retryCred?.accessToken) {
           cachedAccessToken = retryCred.accessToken;

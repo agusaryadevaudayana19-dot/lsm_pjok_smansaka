@@ -156,42 +156,42 @@ export const MuridNilai: React.FC<MuridNilaiProps> = ({ db, currentUser }) => {
                 className="p-4 rounded-xl border border-slate-100 bg-slate-50/70 space-y-2 text-xs"
               >
                 <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-slate-800">{p.materiJudul}</span>
+                  <span className="font-extrabold text-slate-800">{p.materiJudul || p.materi || 'Praktik PJOK'}</span>
                   <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded-full">
-                    Skor: {p.nilaiTotal} ({p.predikat})
+                    Skor: {p.nilaiTotal ?? p.nilaiAkhir ?? 80} ({p.predikat || 'B'})
                   </span>
                 </div>
 
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 text-center pt-2">
                   <div className="p-1.5 bg-white rounded-lg border border-slate-200">
                     <span className="text-[9px] text-slate-400 block">Sikap Awal</span>
-                    <strong className="text-slate-800">{p.rubrik.sikapAwal}/4</strong>
+                    <strong className="text-slate-800">{p.rubrik?.sikapAwal ?? p.aspekNilai?.sikapAwal ?? 3}/4</strong>
                   </div>
                   <div className="p-1.5 bg-white rounded-lg border border-slate-200">
                     <span className="text-[9px] text-slate-400 block">Pelaksanaan</span>
-                    <strong className="text-slate-800">{p.rubrik.pelaksanaanTeknik}/4</strong>
+                    <strong className="text-slate-800">{p.rubrik?.pelaksanaanTeknik ?? p.aspekNilai?.teknikGerakan ?? 3}/4</strong>
                   </div>
                   <div className="p-1.5 bg-white rounded-lg border border-slate-200">
                     <span className="text-[9px] text-slate-400 block">Sikap Akhir</span>
-                    <strong className="text-slate-800">{p.rubrik.sikapAkhir}/4</strong>
+                    <strong className="text-slate-800">{p.rubrik?.sikapAkhir ?? p.aspekNilai?.koordinasi ?? 3}/4</strong>
                   </div>
                   <div className="p-1.5 bg-white rounded-lg border border-slate-200">
                     <span className="text-[9px] text-slate-400 block">Hasil Gerak</span>
-                    <strong className="text-slate-800">{p.rubrik.hasilGerakan}/4</strong>
+                    <strong className="text-slate-800">{p.rubrik?.hasilGerakan ?? p.aspekNilai?.ketepatan ?? 3}/4</strong>
                   </div>
                   <div className="p-1.5 bg-white rounded-lg border border-slate-200">
                     <span className="text-[9px] text-slate-400 block">Sportivitas</span>
-                    <strong className="text-slate-800">{p.rubrik.sportivitas}/4</strong>
+                    <strong className="text-slate-800">{p.rubrik?.sportivitas ?? p.aspekNilai?.sportivitas ?? 4}/4</strong>
                   </div>
                   <div className="p-1.5 bg-white rounded-lg border border-slate-200">
                     <span className="text-[9px] text-slate-400 block">Kerja Sama</span>
-                    <strong className="text-slate-800">{p.rubrik.kerjaSama}/4</strong>
+                    <strong className="text-slate-800">{p.rubrik?.kerjaSama ?? p.aspekNilai?.kerjaSama ?? 4}/4</strong>
                   </div>
                 </div>
 
-                {p.catatanEvaluasi && (
+                {(p.catatanEvaluasi || p.catatanGuru) && (
                   <p className="mt-2 text-slate-600 bg-white p-2.5 rounded-lg border border-slate-100 italic">
-                    Catatan Guru: "{p.catatanEvaluasi}"
+                    Catatan Guru: "{p.catatanEvaluasi || p.catatanGuru}"
                   </p>
                 )}
               </div>

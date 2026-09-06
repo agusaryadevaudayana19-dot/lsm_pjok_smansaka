@@ -45,12 +45,12 @@ export const PraktikAssessment: React.FC<PraktikAssessmentProps> = ({ db, curren
   // Calculate practice score out of 100
   // Total points = 6 criteria * max 4 = 24 points
   const totalPoints =
-    rubrik.sikapAwal +
-    rubrik.pelaksanaanTeknik +
-    rubrik.sikapAkhir +
-    rubrik.hasilGerakan +
-    rubrik.sportivitas +
-    (rubrik.kerjaSama || 4);
+    (rubrik?.sikapAwal ?? 3) +
+    (rubrik?.pelaksanaanTeknik ?? 3) +
+    (rubrik?.sikapAkhir ?? 3) +
+    (rubrik?.hasilGerakan ?? 3) +
+    (rubrik?.sportivitas ?? 4) +
+    (rubrik?.kerjaSama ?? 4);
 
   const nilaiAkhir = Math.round((totalPoints / 24) * 100);
 
@@ -65,11 +65,30 @@ export const PraktikAssessment: React.FC<PraktikAssessmentProps> = ({ db, curren
     setSelectedMurid(murid);
     // Check if an existing assessment exists for this student and topic
     const existing = db.penilaianPraktik.find(
-      (p) => p.muridId === murid.id && p.materiJudul === selectedMateriJudul
+      (p) =>
+        p.muridId === murid.id &&
+        (p.materiJudul === selectedMateriJudul || p.materi === selectedMateriJudul)
     );
     if (existing) {
-      setRubrik(existing.rubrik);
-      setCatatan(existing.catatanEvaluasi);
+      const existingRubrik: RubrikPraktik = existing.rubrik
+        ? {
+            sikapAwal: existing.rubrik.sikapAwal ?? 3,
+            pelaksanaanTeknik: existing.rubrik.pelaksanaanTeknik ?? 3,
+            sikapAkhir: existing.rubrik.sikapAkhir ?? 3,
+            hasilGerakan: existing.rubrik.hasilGerakan ?? 3,
+            sportivitas: existing.rubrik.sportivitas ?? 4,
+            kerjaSama: existing.rubrik.kerjaSama ?? 4,
+          }
+        : {
+            sikapAwal: existing.aspekNilai?.sikapAwal ?? 3,
+            pelaksanaanTeknik: existing.aspekNilai?.teknikGerakan ?? 3,
+            sikapAkhir: existing.aspekNilai?.koordinasi ?? 3,
+            hasilGerakan: existing.aspekNilai?.ketepatan ?? 3,
+            sportivitas: existing.aspekNilai?.sportivitas ?? 4,
+            kerjaSama: existing.aspekNilai?.kerjaSama ?? 4,
+          };
+      setRubrik(existingRubrik);
+      setCatatan(existing.catatanEvaluasi || existing.catatanGuru || '');
     } else {
       setRubrik({
         sikapAwal: 3,
@@ -92,19 +111,37 @@ export const PraktikAssessment: React.FC<PraktikAssessmentProps> = ({ db, curren
       muridId: selectedMurid.id,
       muridNama: selectedMurid.name,
       kelasId: selectedKelasId,
+      kelasNama: db.kelas.find((k) => k.id === selectedKelasId)?.nama || selectedKelasId,
       materiJudul: selectedMateriJudul,
+      materi: selectedMateriJudul,
       tanggal: new Date().toISOString().slice(0, 10),
       rubrik,
+      aspekNilai: {
+        sikapAwal: (rubrik.sikapAwal as any) || 3,
+        teknikGerakan: (rubrik.pelaksanaanTeknik as any) || 3,
+        ketepatan: (rubrik.hasilGerakan as any) || 3,
+        koordinasi: (rubrik.sikapAkhir as any) || 3,
+        sportivitas: (rubrik.sportivitas as any) || 4,
+        kerjaSama: (rubrik.kerjaSama as any) || 4,
+      },
+      totalSkor: totalPoints,
       nilaiTotal: nilaiAkhir,
+      nilaiAkhir: nilaiAkhir,
       predikat: (getPredikat(nilaiAkhir) || 'B').split(' ')[0] as any,
       catatanEvaluasi: catatan,
+      catatanGuru: catatan,
       guruPenilai: currentUser.name,
+      guruNama: currentUser.name,
     };
 
     dataStorage.updateDatabase((prev) => {
       // Remove previous assessment for same student and topic if exists
       const filtered = prev.penilaianPraktik.filter(
-        (p) => !(p.muridId === selectedMurid.id && p.materiJudul === selectedMateriJudul)
+        (p) =>
+          !(
+            p.muridId === selectedMurid.id &&
+            (p.materiJudul === selectedMateriJudul || p.materi === selectedMateriJudul)
+          )
       );
 
       // Also update or insert in rekap nilai murid

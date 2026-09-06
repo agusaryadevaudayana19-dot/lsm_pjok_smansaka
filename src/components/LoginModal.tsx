@@ -65,7 +65,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
     }
 
     // Match by username, nis, or nip
-    const foundUser = db.users.find(
+    const foundUser = (db.users || []).find(
       (u) =>
         u.username.toLowerCase() === cleanId ||
         (u.nis && u.nis.toLowerCase() === cleanId) ||
@@ -86,7 +86,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   };
 
   const handleQuickDemoLogin = (username: string) => {
-    const user = db.users.find((u) => u.username === username);
+    const user = (db.users || []).find((u) => u.username === username);
     if (user) {
       handleSelect(user);
     }
@@ -99,11 +99,13 @@ export const LoginModal: React.FC<LoginModalProps> = ({
       const res = await signInWithGoogle();
       if (res?.user) {
         const email = res.user.email?.toLowerCase() || '';
-        let matched = db.users.find((u) => u.email?.toLowerCase() === email);
+        let matched = (db.users || []).find((u) => u.email?.toLowerCase() === email);
         if (!matched) {
-          matched = db.users.find((u) => u.role === 'GURU') || db.users[0];
+          matched = (db.users || []).find((u) => u.role === 'GURU') || db.users?.[0];
         }
-        handleSelect(matched);
+        if (matched) {
+          handleSelect(matched);
+        }
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Gagal masuk dengan akun Google.');

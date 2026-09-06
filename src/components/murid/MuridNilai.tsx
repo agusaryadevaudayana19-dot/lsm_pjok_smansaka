@@ -9,10 +9,10 @@ interface MuridNilaiProps {
 }
 
 export const MuridNilai: React.FC<MuridNilaiProps> = ({ db, currentUser }) => {
-  const kelasObj = db.kelas.find((k) => k.id === currentUser.kelasId);
+  const kelasObj = (db.kelas || []).find((k) => k.id === currentUser.kelasId);
 
   // Student's grade record
-  const myNilai = db.nilai.find((n) => n.muridId === currentUser.id) || {
+  const myNilai = (db.nilai || []).find((n) => n.muridId === currentUser.id) || {
     id: `nil-${currentUser.id}`,
     muridId: currentUser.id,
     muridNama: currentUser.name,

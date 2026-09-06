@@ -22,7 +22,7 @@ export const MuridMateri: React.FC<MuridMateriProps> = ({ db, initialMateriId })
   const [selectedKategori, setSelectedKategori] = useState<string>('Semua');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeMateri, setActiveMateri] = useState<Materi | null>(
-    initialMateriId ? db.materi.find((m) => m.id === initialMateriId) || null : null
+    initialMateriId ? (db.materi || []).find((m) => m.id === initialMateriId) || null : null
   );
 
   const categories = [

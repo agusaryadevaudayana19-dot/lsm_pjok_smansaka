@@ -28,6 +28,9 @@ import { MuridPresensi } from './components/murid/MuridPresensi';
 import { MuridProfil } from './components/murid/MuridProfil';
 
 // Shared Components
+import { MateriManager } from './components/shared/MateriManager';
+import { TugasManager } from './components/shared/TugasManager';
+import { QuizManager } from './components/shared/QuizManager';
 import { ContentManager } from './components/shared/ContentManager';
 import { AttendanceManager } from './components/shared/AttendanceManager';
 import { GradesReport } from './components/shared/GradesReport';
@@ -58,7 +61,7 @@ export default function App() {
   };
 
   const handleRoleSwitch = (newRole: UserRole) => {
-    const targetUser = db.users.find((u) => u.role === newRole) || db.users[0];
+    const targetUser = (db.users || []).find((u) => u.role === newRole) || db.users?.[0] || currentUser;
     setCurrentUser(targetUser);
     dataStorage.setCurrentUser(targetUser);
     setActiveMenu('dashboard');
@@ -95,11 +98,11 @@ export default function App() {
         case 'mapel':
           return <SubjectManagement db={db} />;
         case 'materi':
-          return <ContentManager type="materi" db={db} currentUser={currentUser} />;
+          return <MateriManager db={db} currentUser={currentUser} />;
         case 'tugas':
-          return <ContentManager type="tugas" db={db} currentUser={currentUser} />;
+          return <TugasManager db={db} currentUser={currentUser} />;
         case 'quiz':
-          return <ContentManager type="quiz" db={db} currentUser={currentUser} />;
+          return <QuizManager db={db} currentUser={currentUser} />;
         case 'praktik':
           return <PraktikAssessment db={db} currentUser={currentUser} />;
         case 'jurnal':
@@ -142,11 +145,11 @@ export default function App() {
             />
           );
         case 'materi':
-          return <ContentManager type="materi" db={db} currentUser={currentUser} />;
+          return <MateriManager db={db} currentUser={currentUser} />;
         case 'tugas':
-          return <ContentManager type="tugas" db={db} currentUser={currentUser} />;
+          return <TugasManager db={db} currentUser={currentUser} />;
         case 'quiz':
-          return <ContentManager type="quiz" db={db} currentUser={currentUser} />;
+          return <QuizManager db={db} currentUser={currentUser} />;
         case 'praktik':
           return <PraktikAssessment db={db} currentUser={currentUser} />;
         case 'presensi':

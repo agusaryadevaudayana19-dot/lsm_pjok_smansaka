@@ -23,12 +23,12 @@ interface MuridDashboardProps {
 
 export const MuridDashboard: React.FC<MuridDashboardProps> = ({ db, currentUser, onNavigate }) => {
   const myKelasId = currentUser.kelasId || 'cls-xi-1';
-  const kelasObj = db.kelas.find((k) => k.id === myKelasId);
+  const kelasObj = (db.kelas || []).find((k) => k.id === myKelasId);
 
   // Filter student's materials
-  const materiAktif = db.materi.filter((m) => m.status === 'Publish');
-  const tugasList = db.tugas.filter((t) => t.status === 'Publish');
-  const pengumpulanSaya = db.pengumpulanTugas.filter((p) => p.muridId === currentUser.id);
+  const materiAktif = (db.materi || []).filter((m) => m.status === 'Publish');
+  const tugasList = (db.tugas || []).filter((t) => t.status === 'Publish');
+  const pengumpulanSaya = (db.pengumpulanTugas || []).filter((p) => p.muridId === currentUser.id);
 
   // Unfinished tasks
   const tugasBelum = tugasList.filter(
@@ -36,10 +36,10 @@ export const MuridDashboard: React.FC<MuridDashboardProps> = ({ db, currentUser,
   );
 
   // Active quiz
-  const quizAktif = db.quiz;
+  const quizAktif = db.quiz || [];
 
   // Student grades
-  const nilaiSaya = db.nilai.find((n) => n.muridId === currentUser.id) || {
+  const nilaiSaya = (db.nilai || []).find((n) => n.muridId === currentUser.id) || {
     tugas: 85,
     quiz: 80,
     praktik: 88,

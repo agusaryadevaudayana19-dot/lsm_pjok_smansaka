@@ -31,7 +31,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ db, role, 
   const getInitialStatus = (): Record<string, StatusPresensi> => {
     const map: Record<string, StatusPresensi> = {};
     muridInKelas.forEach((m) => {
-      const existing = db.presensi.find(
+      const existing = (db.presensi || []).find(
         (p) => p.muridId === m.id && p.tanggal === selectedTanggal
       );
       map[m.id] = existing ? existing.status : 'H';
@@ -77,7 +77,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ db, role, 
       };
     });
 
-    alert(`Presensi Kelas ${db.kelas.find((k) => k.id === selectedKelasId)?.nama} tanggal ${selectedTanggal} berhasil disimpan!`);
+    alert(`Presensi Kelas ${(db.kelas || []).find((k) => k.id === selectedKelasId)?.nama} tanggal ${selectedTanggal} berhasil disimpan!`);
   };
 
   // Stats calculation

@@ -151,7 +151,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ db, initialTab =
   };
 
   const getKelasName = (id?: string) => {
-    return db.kelas.find((k) => k.id === id)?.nama || '-';
+    return (db.kelas || []).find((k) => k.id === id)?.nama || '-';
   };
 
   return (

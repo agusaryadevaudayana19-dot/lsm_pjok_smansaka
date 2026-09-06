@@ -57,7 +57,7 @@ export const JurnalMengajarView: React.FC<JurnalMengajarProps> = ({ db, currentU
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    const kelasObj = db.kelas.find((k) => k.id === formData.kelasId);
+    const kelasObj = (db.kelas || []).find((k) => k.id === formData.kelasId);
 
     if (editingJurnal) {
       dataStorage.updateDatabase((prev) => ({

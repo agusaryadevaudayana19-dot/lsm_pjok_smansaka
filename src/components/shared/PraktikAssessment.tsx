@@ -64,7 +64,7 @@ export const PraktikAssessment: React.FC<PraktikAssessmentProps> = ({ db, curren
   const handleSelectMurid = (murid: User) => {
     setSelectedMurid(murid);
     // Check if an existing assessment exists for this student and topic
-    const existing = db.penilaianPraktik.find(
+    const existing = (db.penilaianPraktik || []).find(
       (p) =>
         p.muridId === murid.id &&
         (p.materiJudul === selectedMateriJudul || p.materi === selectedMateriJudul)
@@ -111,7 +111,7 @@ export const PraktikAssessment: React.FC<PraktikAssessmentProps> = ({ db, curren
       muridId: selectedMurid.id,
       muridNama: selectedMurid.name,
       kelasId: selectedKelasId,
-      kelasNama: db.kelas.find((k) => k.id === selectedKelasId)?.nama || selectedKelasId,
+      kelasNama: (db.kelas || []).find((k) => k.id === selectedKelasId)?.nama || selectedKelasId,
       materiJudul: selectedMateriJudul,
       materi: selectedMateriJudul,
       tanggal: new Date().toISOString().slice(0, 10),
@@ -273,7 +273,7 @@ export const PraktikAssessment: React.FC<PraktikAssessmentProps> = ({ db, curren
 
           <div className="space-y-1.5 max-h-[520px] overflow-y-auto">
             {muridInKelas.map((murid) => {
-              const hasAssessment = db.penilaianPraktik.find(
+              const hasAssessment = (db.penilaianPraktik || []).find(
                 (p) => p.muridId === murid.id && p.materiJudul === selectedMateriJudul
               );
               const isSelected = selectedMurid?.id === murid.id;
@@ -347,7 +347,7 @@ export const PraktikAssessment: React.FC<PraktikAssessmentProps> = ({ db, curren
                   <div>
                     <h3 className="text-base font-extrabold text-slate-800">{selectedMurid.name}</h3>
                     <p className="text-xs text-slate-400">
-                      NIS: {selectedMurid.nis} • Kelas {db.kelas.find((k) => k.id === selectedKelasId)?.nama}
+                      NIS: {selectedMurid.nis} • Kelas {(db.kelas || []).find((k) => k.id === selectedKelasId)?.nama}
                     </p>
                   </div>
                 </div>

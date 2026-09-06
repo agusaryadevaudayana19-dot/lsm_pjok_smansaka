@@ -27,7 +27,7 @@ export const GradesReport: React.FC<GradesReportProps> = ({ db, currentUser, onO
 
   // Match grades
   const gradesRows = muridInKelas.map((murid) => {
-    const existing = db.nilai.find((n) => n.muridId === murid.id);
+    const existing = (db.nilai || []).find((n) => n.muridId === murid.id);
     if (existing) {
       return { murid, nilai: existing };
     }
@@ -61,7 +61,7 @@ export const GradesReport: React.FC<GradesReportProps> = ({ db, currentUser, onO
     (r.murid.nis && r.murid.nis.includes(searchQuery))
   );
 
-  const selectedKelasObj = db.kelas.find((k) => k.id === selectedKelasId);
+  const selectedKelasObj = (db.kelas || []).find((k) => k.id === selectedKelasId);
 
   const handleExportCSV = () => {
     const headers = [

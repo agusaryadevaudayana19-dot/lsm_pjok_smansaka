@@ -31,11 +31,11 @@ export const GuruDataMurid: React.FC<GuruDataMuridProps> = ({ db, onNavigatePrak
       (m.nis && m.nis.includes(searchQuery))
   );
 
-  const selectedKelasObj = db.kelas.find((k) => k.id === selectedKelasId);
+  const selectedKelasObj = (db.kelas || []).find((k) => k.id === selectedKelasId);
 
   // Student details data
   const getMuridScore = (muridId: string) => {
-    return db.nilai.find((n) => n.muridId === muridId);
+    return (db.nilai || []).find((n) => n.muridId === muridId);
   };
 
   const getMuridAttendance = (muridId: string) => {

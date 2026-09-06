@@ -11,15 +11,23 @@ import {
   Award,
   Sparkles,
   Users,
+  UserCheck,
+  Cloud,
+  RefreshCw,
+  Smartphone,
+  Laptop,
+  CheckCircle2,
+  CloudOff,
 } from 'lucide-react';
 import { User, UserRole, PengaturanSekolah } from '../types';
-import { dataStorage } from '../services/dataStorage';
+import { dataStorage, FirestoreSyncStatus } from '../services/dataStorage';
 
 interface NavbarProps {
   currentUser: User;
   onOpenSidebar?: () => void;
   onToggleSidebar?: () => void;
   onOpenLoginModal?: () => void;
+  onLogout?: () => void;
   onOpenSheetsModal?: () => void;
   onOpenGoogleSheets?: () => void;
   onSwitchRole?: (role: UserRole) => void;
@@ -32,6 +40,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSidebar,
   onToggleSidebar,
   onOpenLoginModal,
+  onLogout,
   onOpenSheetsModal,
   onOpenGoogleSheets,
   onSwitchRole,
@@ -41,13 +50,25 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [showNotifMenu, setShowNotifMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<FirestoreSyncStatus>(dataStorage.getSyncStatus());
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(dataStorage.getLastSyncTime());
+  const [showSyncDetails, setShowSyncDetails] = useState(false);
+  const [isManualSyncing, setIsManualSyncing] = useState(false);
 
   const profileRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLDivElement>(null);
+  const syncRef = useRef<HTMLDivElement>(null);
 
   const db = dataStorage.getDatabase();
   const unreadCount = db.notifikasi ? db.notifikasi.filter((n) => !n.dibaca).length : 0;
+
+  useEffect(() => {
+    return dataStorage.onSyncStatusChange((status, lastSync) => {
+      setSyncStatus(status);
+      if (lastSync) setLastSyncTime(lastSync);
+    });
+  }, []);
 
   const handleSidebarClick = () => {
     if (onOpenSidebar) onOpenSidebar();
@@ -70,6 +91,9 @@ export const Navbar: React.FC<NavbarProps> = ({
       }
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
         setShowSearchResults(false);
+      }
+      if (syncRef.current && !syncRef.current.contains(e.target as Node)) {
+        setShowSyncDetails(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -282,7 +306,126 @@ export const Navbar: React.FC<NavbarProps> = ({
       </div>
 
       {/* Right: Actions, Notifications, & User Info */}
-      <div className="flex items-center space-x-3 sm:space-x-4 lg:space-x-5">
+      <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4">
+        {/* Firestore Real-Time Sync Indicator */}
+        <div ref={syncRef} className="relative">
+          <button
+            onClick={() => setShowSyncDetails(!showSyncDetails)}
+            id="btn-firestore-sync-status"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-medium transition-all shadow-2xs hover:bg-gray-50 focus:outline-hidden"
+            title="Sinkronisasi Cloud Firestore Real-time"
+          >
+            {syncStatus === 'synced' ? (
+              <>
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <Cloud className="w-3.5 h-3.5 text-emerald-600" />
+                <span className="hidden sm:inline text-slate-700 font-semibold text-[11px]">Real-time</span>
+              </>
+            ) : syncStatus === 'syncing' || isManualSyncing ? (
+              <>
+                <RefreshCw className="w-3.5 h-3.5 text-blue-600 animate-spin" />
+                <span className="hidden sm:inline text-blue-700 font-medium text-[11px]">Sinkronisasi...</span>
+              </>
+            ) : syncStatus === 'connecting' ? (
+              <>
+                <RefreshCw className="w-3.5 h-3.5 text-amber-500 animate-spin" />
+                <span className="hidden sm:inline text-amber-700 font-medium text-[11px]">Menghubungkan...</span>
+              </>
+            ) : (
+              <>
+                <CloudOff className="w-3.5 h-3.5 text-slate-400" />
+                <span className="hidden sm:inline text-slate-500 text-[11px]">Offline</span>
+              </>
+            )}
+          </button>
+
+          {/* Sync Details Popover */}
+          {showSyncDetails && (
+            <div className="absolute right-0 mt-2 w-76 sm:w-84 bg-white border border-gray-200 rounded-2xl shadow-xl z-50 p-3.5 text-xs text-slate-700">
+              <div className="flex items-center justify-between pb-2 mb-2 border-b border-gray-100">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                    <Cloud className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-slate-800 text-xs">Cloud Firestore Real-Time</h4>
+                    <p className="text-[10px] text-slate-500">Otomatis Sinkron Semua Perangkat</p>
+                  </div>
+                </div>
+                <span
+                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    syncStatus === 'synced'
+                      ? 'bg-emerald-100 text-emerald-700'
+                      : syncStatus === 'syncing'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'bg-amber-100 text-amber-700'
+                  }`}
+                >
+                  {syncStatus === 'synced' ? 'Terhubung' : syncStatus === 'syncing' ? 'Menyinkron' : 'Standby'}
+                </span>
+              </div>
+
+              <div className="space-y-2 py-1">
+                <div className="flex items-start gap-2 bg-slate-50 p-2.5 rounded-xl text-[11px] leading-relaxed text-slate-600">
+                  <div className="flex items-center gap-1 text-slate-700 font-semibold shrink-0 mt-0.5">
+                    <Laptop className="w-3.5 h-3.5 text-blue-600" />
+                    <span>↔</span>
+                    <Smartphone className="w-3.5 h-3.5 text-purple-600" />
+                  </div>
+                  <span>
+                    Data materi, nilai, presensi, dan tugas otomatis tersinkronisasi langsung antara laptop guru dan HP murid tanpa perlu spreadsheet.
+                  </span>
+                </div>
+
+                <div className="flex justify-between items-center text-[11px] text-slate-500 px-1">
+                  <span>Terakhir Sinkron:</span>
+                  <span className="font-semibold text-slate-700">
+                    {lastSyncTime
+                      ? lastSyncTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+                      : 'Baru saja'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="pt-2.5 mt-2 border-t border-gray-100 flex gap-2">
+                <button
+                  onClick={async () => {
+                    setIsManualSyncing(true);
+                    try {
+                      await dataStorage.forceRefreshFromFirestore();
+                    } finally {
+                      setIsManualSyncing(false);
+                    }
+                  }}
+                  disabled={isManualSyncing}
+                  className="flex-1 py-1.5 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50 text-[11px]"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isManualSyncing ? 'animate-spin' : ''}`} />
+                  <span>Tarik Data Terbaru</span>
+                </button>
+                <button
+                  onClick={async () => {
+                    setIsManualSyncing(true);
+                    try {
+                      await dataStorage.seedAllToFirestore();
+                    } finally {
+                      setIsManualSyncing(false);
+                    }
+                  }}
+                  disabled={isManualSyncing}
+                  className="py-1.5 px-2.5 bg-gray-100 hover:bg-gray-200 text-slate-700 rounded-lg font-semibold text-[11px] transition-colors"
+                  title="Kirim semua data lokal ke Cloud Firestore"
+                >
+                  Unggah Lokal
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
         {/* Google Sheets Sync Trigger - Admin Only */}
         {currentUser.role === 'ADMIN' && (
           <button
@@ -412,20 +555,38 @@ export const Navbar: React.FC<NavbarProps> = ({
                 </div>
               )}
 
-              {onOpenLoginModal && (
-                <div className="pt-1">
+              <div className="pt-1 space-y-0.5">
+                {onOpenLoginModal && (
                   <button
                     onClick={() => {
                       setShowProfileMenu(false);
                       onOpenLoginModal();
                     }}
+                    className="w-full text-left px-3 py-2 text-slate-700 hover:bg-gray-50 rounded-lg flex items-center gap-2 font-medium transition-colors"
+                  >
+                    <UserCheck className="w-4 h-4 text-blue-600" />
+                    <span>Ganti Akun / Peran</span>
+                  </button>
+                )}
+
+                {(onLogout || onOpenLoginModal) && (
+                  <button
+                    onClick={() => {
+                      setShowProfileMenu(false);
+                      if (onLogout) {
+                        onLogout();
+                      } else if (onOpenLoginModal) {
+                        onOpenLoginModal();
+                      }
+                    }}
+                    id="btn-navbar-logout"
                     className="w-full text-left px-3 py-2 text-rose-600 hover:bg-rose-50 rounded-lg flex items-center gap-2 font-medium transition-colors"
                   >
                     <LogOut className="w-4 h-4" />
                     <span>Keluar Sistem</span>
                   </button>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           )}
         </div>

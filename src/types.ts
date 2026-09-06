@@ -273,6 +273,7 @@ export interface NotifikasiItem {
 
 export interface PengaturanSekolah {
   namaSekolah: string;
+  npsn?: string;
   logoSekolah?: string;
   tahunPelajaran: string;
   semester?: 'Ganjil' | 'Genap';

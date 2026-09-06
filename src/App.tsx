@@ -35,10 +35,23 @@ import { ContentManager } from './components/shared/ContentManager';
 import { AttendanceManager } from './components/shared/AttendanceManager';
 import { GradesReport } from './components/shared/GradesReport';
 import { PraktikAssessment } from './components/shared/PraktikAssessment';
+import { LoginPage } from './components/LoginPage';
 
 export default function App() {
   const [db, setDb] = useState<LMSDatabase>(dataStorage.getDatabase());
-  const [currentUser, setCurrentUser] = useState<User>(dataStorage.getCurrentUser());
+  const [currentUser, setCurrentUser] = useState<User | null>(() => {
+    // When opening the link fresh, the initial main view should be the login screen
+    try {
+      const isSessionActive = sessionStorage.getItem('lms_pjok_session_active');
+      if (isSessionActive === 'true') {
+        const savedUser = dataStorage.getCurrentUser();
+        if (savedUser) return savedUser;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return null;
+  });
   const [activeMenu, setActiveMenu] = useState<string>('dashboard');
   const [activeSubParam, setActiveSubParam] = useState<string | undefined>(undefined);
 
@@ -61,9 +74,24 @@ export default function App() {
   };
 
   const handleRoleSwitch = (newRole: UserRole) => {
-    const targetUser = (db.users || []).find((u) => u.role === newRole) || db.users?.[0] || currentUser;
-    setCurrentUser(targetUser);
-    dataStorage.setCurrentUser(targetUser);
+    const targetUser = (db.users || []).find((u) => u.role === newRole) || db.users?.[0];
+    if (targetUser) {
+      setCurrentUser(targetUser);
+      dataStorage.setCurrentUser(targetUser);
+      setActiveMenu('dashboard');
+      setActiveSubParam(undefined);
+    }
+  };
+
+  const handleLogout = () => {
+    dataStorage.clearCurrentUser();
+    try {
+      sessionStorage.removeItem('lms_pjok_session_active');
+    } catch (e) {
+      // ignore
+    }
+    setCurrentUser(null);
+    setIsLoginModalOpen(false);
     setActiveMenu('dashboard');
     setActiveSubParam(undefined);
   };
@@ -74,6 +102,21 @@ export default function App() {
     setIsSidebarOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
+
+  // If not logged in, render the dedicated Login Screen as the main initial view
+  if (!currentUser) {
+    return (
+      <LoginPage
+        settings={db.settings}
+        onLoginSuccess={(user) => {
+          setCurrentUser(user);
+          dataStorage.setCurrentUser(user);
+          setActiveMenu('dashboard');
+          setActiveSubParam(undefined);
+        }}
+      />
+    );
+  }
 
   const renderActiveView = () => {
     // 1. ADMIN VIEWS
@@ -209,6 +252,7 @@ export default function App() {
         isOpen={isSidebarOpen}
         onClose={() => setIsSidebarOpen(false)}
         onOpenGoogleSheets={() => setIsSheetsModalOpen(true)}
+        onLogout={handleLogout}
       />
 
       {/* Main Column */}
@@ -218,6 +262,7 @@ export default function App() {
           currentUser={currentUser}
           onOpenSidebar={() => setIsSidebarOpen(true)}
           onOpenLoginModal={() => setIsLoginModalOpen(true)}
+          onLogout={handleLogout}
           onOpenSheetsModal={() => setIsSheetsModalOpen(true)}
           onSwitchRole={handleRoleSwitch}
           onSelectMenuItem={(menuId, param) => {

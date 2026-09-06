@@ -15,6 +15,17 @@ import {
   RekapNilaiMurid,
   PengaturanSekolah,
 } from '../types';
+import {
+  collection,
+  doc,
+  setDoc,
+  getDocs,
+  onSnapshot,
+  Unsubscribe,
+} from 'firebase/firestore';
+import { signInAnonymously } from 'firebase/auth';
+import { firestore, handleFirestoreError, OperationType } from './firestore';
+import { auth } from './firebaseAuth';
 
 export interface LMSDatabase {
   users: User[];
@@ -852,15 +863,262 @@ Zona Latihan Efektif: 65% - 85% dari DNM.`,
   ],
 };
 
+export type FirestoreSyncStatus = 'connecting' | 'synced' | 'syncing' | 'offline' | 'error';
+
 class DataStorageService {
   private db: LMSDatabase;
   private listeners: Array<(db: LMSDatabase) => void> = [];
+  private syncStatus: FirestoreSyncStatus = 'connecting';
+  private lastSyncTime: Date | null = null;
+  private statusListeners: Array<(status: FirestoreSyncStatus, lastSync?: Date | null) => void> = [];
+  private isApplyingRemoteUpdate = false;
+  private isSyncingToFirestore = false;
+  private unsubscribeFirestore: Unsubscribe | null = null;
 
   constructor() {
     this.db = this.loadFromLocalStorage();
+    this.initFirestoreSync();
   }
 
-  public getCurrentUser(): User {
+  /**
+   * Menginisialisasi pendengar real-time Firestore agar perubahan di satu perangkat
+   * (misal laptop guru) langsung otomatis diterima di perangkat lain (misal HP siswa)
+   */
+  private async initFirestoreSync() {
+    try {
+      // Pastikan ada sesi autentikasi Firebase di background
+      if (!auth.currentUser) {
+        signInAnonymously(auth).catch((err) => {
+          console.info('Anonymous sign-in status:', err?.code || 'bypassed');
+        });
+      }
+
+      this.updateSyncStatus('connecting');
+      const recordsCol = collection(firestore, 'lms_records');
+
+      // Pasang listener real-time onSnapshot
+      this.unsubscribeFirestore = onSnapshot(
+        recordsCol,
+        (snapshot) => {
+          this.lastSyncTime = new Date();
+
+          if (snapshot.empty) {
+            console.log('Firestore masih kosong, mengunggah data inisial sistem ke Firestore...');
+            this.seedAllToFirestore();
+            return;
+          }
+
+          // Jangan timpa jika sedang dalam proses upload lokal kita sendiri
+          if (this.isSyncingToFirestore) {
+            this.updateSyncStatus('synced');
+            return;
+          }
+
+          this.isApplyingRemoteUpdate = true;
+          try {
+            const incoming: Partial<LMSDatabase> = {};
+            let hasIncomingData = false;
+
+            snapshot.forEach((docSnap) => {
+              const docId = docSnap.id;
+              const data = docSnap.data();
+
+              if (docId === 'settings' && data?.data) {
+                incoming.settings = { ...this.db.settings, ...data.data };
+                hasIncomingData = true;
+              } else if (data && Array.isArray(data.items)) {
+                (incoming as any)[docId] = data.items;
+                hasIncomingData = true;
+              }
+            });
+
+            if (hasIncomingData) {
+              this.db = {
+                ...this.db,
+                ...incoming,
+                settings: incoming.settings || this.db.settings,
+              };
+
+              this.saveToLocalStorage(this.db);
+              this.notifyLocalListeners();
+            }
+
+            this.updateSyncStatus('synced');
+          } catch (err) {
+            console.error('Gagal menerapkan update real-time dari Firestore:', err);
+            this.updateSyncStatus('error');
+          } finally {
+            this.isApplyingRemoteUpdate = false;
+          }
+        },
+        (error) => {
+          console.warn('Firestore onSnapshot error (offline fallback active):', error?.message || error);
+          this.updateSyncStatus('offline');
+        }
+      );
+    } catch (error) {
+      console.warn('Gagal menghubungkan listener real-time Firestore:', error);
+      this.updateSyncStatus('offline');
+    }
+  }
+
+  /**
+   * Mengunggah seluruh data inisial ke Firestore (digunakan saat koleksi baru dibuat)
+   */
+  public async seedAllToFirestore(): Promise<void> {
+    try {
+      this.updateSyncStatus('syncing');
+      const sections: (keyof LMSDatabase)[] = [
+        'settings',
+        'users',
+        'kelas',
+        'mataPelajaran',
+        'materi',
+        'tugas',
+        'pengumpulanTugas',
+        'quiz',
+        'jawabanQuiz',
+        'penilaianPraktik',
+        'presensi',
+        'jurnal',
+        'notifikasi',
+        'nilai',
+      ];
+
+      for (const sec of sections) {
+        const docRef = doc(firestore, 'lms_records', sec);
+        const rawVal = this.db[sec];
+        const cleanVal = JSON.parse(JSON.stringify(rawVal));
+
+        const payload =
+          sec === 'settings'
+            ? { data: cleanVal, section: sec, updatedAt: new Date().toISOString() }
+            : { items: cleanVal, section: sec, updatedAt: new Date().toISOString() };
+
+        await setDoc(docRef, payload, { merge: true });
+      }
+
+      this.lastSyncTime = new Date();
+      this.updateSyncStatus('synced');
+      console.log('Seluruh database awal berhasil disinkronkan ke Firestore cloud.');
+    } catch (err) {
+      console.error('Gagal melakukan seed database ke Firestore:', err);
+      this.updateSyncStatus('error');
+    }
+  }
+
+  /**
+   * Sinkronkan bagian yang berubah ke Firestore secara otomatis
+   */
+  private async syncChangesToFirestore(prev: LMSDatabase, next: LMSDatabase) {
+    if (this.isApplyingRemoteUpdate) {
+      return;
+    }
+
+    try {
+      this.isSyncingToFirestore = true;
+      this.updateSyncStatus('syncing');
+
+      const sections: (keyof LMSDatabase)[] = [
+        'settings',
+        'users',
+        'kelas',
+        'mataPelajaran',
+        'materi',
+        'tugas',
+        'pengumpulanTugas',
+        'quiz',
+        'jawabanQuiz',
+        'penilaianPraktik',
+        'presensi',
+        'jurnal',
+        'notifikasi',
+        'nilai',
+      ];
+
+      const changedSections = sections.filter((sec) => prev[sec] !== next[sec]);
+
+      for (const sec of changedSections) {
+        const docRef = doc(firestore, 'lms_records', sec);
+        const rawVal = next[sec];
+        const cleanVal = JSON.parse(JSON.stringify(rawVal));
+
+        const payload =
+          sec === 'settings'
+            ? { data: cleanVal, section: sec, updatedAt: new Date().toISOString() }
+            : { items: cleanVal, section: sec, updatedAt: new Date().toISOString() };
+
+        await setDoc(docRef, payload, { merge: true });
+      }
+
+      this.lastSyncTime = new Date();
+      this.updateSyncStatus('synced');
+    } catch (err: any) {
+      console.warn('Gagal sinkronisasi ke Firestore (data tetap aman di penyimpanan lokal):', err?.message || err);
+      this.updateSyncStatus('offline');
+    } finally {
+      this.isSyncingToFirestore = false;
+    }
+  }
+
+  private updateSyncStatus(status: FirestoreSyncStatus) {
+    this.syncStatus = status;
+    this.statusListeners.forEach((l) => l(status, this.lastSyncTime));
+  }
+
+  public getSyncStatus(): FirestoreSyncStatus {
+    return this.syncStatus;
+  }
+
+  public getLastSyncTime(): Date | null {
+    return this.lastSyncTime;
+  }
+
+  public onSyncStatusChange(
+    listener: (status: FirestoreSyncStatus, lastSync?: Date | null) => void
+  ): () => void {
+    this.statusListeners.push(listener);
+    listener(this.syncStatus, this.lastSyncTime);
+    return () => {
+      this.statusListeners = this.statusListeners.filter((l) => l !== listener);
+    };
+  }
+
+  public async forceRefreshFromFirestore(): Promise<void> {
+    try {
+      this.updateSyncStatus('syncing');
+      const recordsCol = collection(firestore, 'lms_records');
+      const snapshot = await getDocs(recordsCol);
+
+      if (!snapshot.empty) {
+        const incoming: Partial<LMSDatabase> = {};
+        snapshot.forEach((docSnap) => {
+          const docId = docSnap.id;
+          const data = docSnap.data();
+          if (docId === 'settings' && data?.data) {
+            incoming.settings = data.data;
+          } else if (data && Array.isArray(data.items)) {
+            (incoming as any)[docId] = data.items;
+          }
+        });
+
+        this.db = {
+          ...this.db,
+          ...incoming,
+          settings: incoming.settings || this.db.settings,
+        };
+        this.saveToLocalStorage(this.db);
+        this.notifyLocalListeners();
+      }
+      this.lastSyncTime = new Date();
+      this.updateSyncStatus('synced');
+    } catch (err) {
+      console.error('Gagal mengambil data paksa dari Firestore:', err);
+      this.updateSyncStatus('error');
+    }
+  }
+
+  public getCurrentUser(): User | null {
     try {
       const savedUser = localStorage.getItem('lms_pjok_current_user');
       if (savedUser) {
@@ -869,14 +1127,27 @@ class DataStorageService {
     } catch (e) {
       // fallback
     }
-    return this.db.users[0];
+    return null;
   }
 
-  public setCurrentUser(user: User) {
+  public setCurrentUser(user: User | null) {
     try {
-      localStorage.setItem('lms_pjok_current_user', JSON.stringify(user));
+      if (user) {
+        localStorage.setItem('lms_pjok_current_user', JSON.stringify(user));
+      } else {
+        localStorage.removeItem('lms_pjok_current_user');
+      }
     } catch (e) {
       console.error('Failed to save current user:', e);
+    }
+  }
+
+  public clearCurrentUser() {
+    try {
+      localStorage.removeItem('lms_pjok_current_user');
+      sessionStorage.removeItem('lms_pjok_session_active');
+    } catch (e) {
+      console.error('Failed to clear current user:', e);
     }
   }
 
@@ -974,19 +1245,28 @@ class DataStorageService {
     };
   }
 
-  private notify() {
-    this.saveToLocalStorage(this.db);
+  private notifyLocalListeners() {
     this.listeners.forEach((l) => l(this.db));
   }
 
+  private notify() {
+    this.saveToLocalStorage(this.db);
+    this.notifyLocalListeners();
+  }
+
   public updateDatabase(updater: (prev: LMSDatabase) => LMSDatabase) {
-    this.db = updater(this.db);
+    const prev = this.db;
+    const next = updater(prev);
+    this.db = next;
     this.notify();
+    // Sinkronkan perubahan secara asinkron ke Firestore
+    this.syncChangesToFirestore(prev, next);
   }
 
   public resetToDefaults() {
     this.db = JSON.parse(JSON.stringify(INITIAL_DATABASE));
     this.notify();
+    this.seedAllToFirestore();
   }
 
   // Helper getters

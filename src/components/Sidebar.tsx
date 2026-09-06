@@ -225,6 +225,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </button>
           </div>
         )}
+
+        {/* Logout action */}
+        {onLogout && (
+          <div className="px-4 mt-2">
+            <button
+              onClick={() => {
+                if (onClose) onClose();
+                onLogout();
+              }}
+              id="btn-sidebar-logout"
+              className="w-full flex items-center px-4 py-2.5 rounded-xl bg-rose-950/30 hover:bg-rose-900/50 text-xs font-medium text-rose-300 border border-rose-900/40 transition-colors"
+            >
+              <LogOut className="w-4 h-4 mr-2.5 text-rose-400 shrink-0" />
+              <span>Keluar Sistem</span>
+            </button>
+          </div>
+        )}
       </nav>
 
       {/* Footer Version Marker */}

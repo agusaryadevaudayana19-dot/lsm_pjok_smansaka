@@ -82,25 +82,38 @@ export const signInWithGoogle = async (): Promise<{
     setGoogleAccessToken(credential.accessToken);
     return { user: result.user, accessToken: cachedAccessToken };
   } catch (err: any) {
-    console.error('Google Sign In Error:', err);
+    // 1. User intentionally closed the popup or cancelled the request - treat as cancellation, not an application error
+    if (
+      err?.code === 'auth/popup-closed-by-user' ||
+      err?.code === 'auth/cancelled-popup-request' ||
+      err?.message?.includes('auth/popup-closed-by-user') ||
+      err?.message?.includes('popup-closed-by-user')
+    ) {
+      console.info('Google Sign-In popup was closed or cancelled by the user.');
+      return null;
+    }
 
-    if (err?.code === 'auth/popup-closed-by-user') {
-      throw new Error('Jendela login Google ditutup sebelum proses selesai. Silakan coba lagi.');
+    // 2. Popup was blocked by the browser
+    if (err?.code === 'auth/popup-blocked' || err?.message?.includes('popup-blocked')) {
+      console.warn('Google Sign-In popup was blocked by the browser.');
+      throw new Error(
+        'Jendela pop-up login Google diblokir oleh peramban. Harap izinkan pop-up pada peramban Anda atau buka aplikasi di tab baru.'
+      );
     }
-    if (err?.code === 'auth/popup-blocked') {
-      throw new Error('Jendela pop-up login Google diblokir oleh browser. Harap izinkan pop-up.');
+
+    // 3. Domain is not yet authorized in Firebase Console
+    if (err?.code === 'auth/unauthorized-domain' || err?.message?.includes('unauthorized-domain')) {
+      console.warn('Google Sign-In domain is not yet authorized.');
+      throw new Error(
+        'Domain aplikasi belum terdaftar di Firebase Authorized Domains. Silakan gunakan opsi Pilihan Akun Cepat di layar login.'
+      );
     }
-    if (err?.code === 'auth/cancelled-popup-request') {
-      throw new Error('Proses login Google dibatalkan karena ada permintaan baru.');
-    }
-    if (err?.code === 'auth/unauthorized-domain') {
-      throw new Error('Domain belum diotorisasi di Firebase Authentication Console.');
-    }
+
     if (err?.code === 'auth/argument-error') {
       throw new Error('Konfigurasi autentikasi peramban tidak sesuai. Silakan buka aplikasi di tab baru.');
     }
 
-    // Handle IDBDatabase connection closing error
+    // 4. Handle IDBDatabase connection closing error in iframes
     if (
       err?.message &&
       (err.message.includes('IDBDatabase') || err.message.includes('database connection is closing'))
@@ -115,13 +128,20 @@ export const signInWithGoogle = async (): Promise<{
           return { user: retryResult.user, accessToken: cachedAccessToken };
         }
       } catch (retryErr: any) {
-        console.error('Retry Google Sign In Error:', retryErr);
+        if (
+          retryErr?.code === 'auth/popup-closed-by-user' ||
+          retryErr?.message?.includes('popup-closed-by-user')
+        ) {
+          return null;
+        }
+        console.warn('Retry Google Sign In Error:', retryErr);
         throw new Error(
-          'Koneksi IndexedDB dibatasi di dalam iframe. Silakan buka aplikasi di tab baru untuk menghubungkan Google Spreadsheet.'
+          'Koneksi IndexedDB dibatasi di dalam iframe. Silakan buka aplikasi di tab baru atau gunakan Pilihan Akun Cepat.'
         );
       }
     }
 
+    console.error('Google Sign In Error:', err);
     throw err;
   } finally {
     isSigningIn = false;

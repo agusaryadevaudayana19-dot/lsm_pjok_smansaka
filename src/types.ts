@@ -309,6 +309,8 @@ export interface PengaturanSekolah {
   temaWarna?: string;
   googleSpreadsheetId?: string;
   spreadsheetUrl?: string;
+  spreadsheetWebhookUrl?: string;
+  autoSyncSpreadsheet?: boolean;
   terakhirSinkron?: string;
 }
 

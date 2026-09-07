@@ -26,6 +26,13 @@ import {
 import { signInAnonymously } from 'firebase/auth';
 import { firestore, handleFirestoreError, OperationType } from './firestore';
 import { auth } from './firebaseAuth';
+import { DEFAULT_USERS, DEFAULT_NILAI } from '../data/defaultUsers';
+import {
+  syncViaAppsScriptWebhook,
+  fetchViaAppsScriptWebhook,
+  exportUsersToCSV,
+  parseCSVToUsers,
+} from './sheetsService';
 
 export interface LMSDatabase {
   users: User[];
@@ -44,7 +51,7 @@ export interface LMSDatabase {
   settings: PengaturanSekolah;
 }
 
-const STORAGE_KEY = 'lms_pjok_db_v1';
+const STORAGE_KEY = 'lms_pjok_db_v2';
 
 const DEFAULT_QUIZ_SOAL: Soal[] = [
   {
@@ -172,155 +179,25 @@ export const INITIAL_DATABASE: LMSDatabase = {
     semester: 'Ganjil',
     namaKepalaSekolah: 'Dr. Drs. I Nyoman Sukadana, M.Pd.',
     nipKepalaSekolah: '19690815 199412 1 002',
-    namaGuruPJOKUtama: 'Haryono, S.Pd.Jas, M.Or.',
-    nipGuruPJOKUtama: '19850314 201001 1 018',
+    namaGuruPJOKUtama: 'I Ketut Agus Nova Anggarawan, S.Pd., Gr.',
+    nipGuruPJOKUtama: '198811152022211013',
     mataPelajaran: 'Pendidikan Jasmani, Olahraga, dan Kesehatan (PJOK)',
     temaWarna: 'Biru & Hijau Sportif',
     terakhirSinkron: new Date().toISOString(),
+    autoSyncSpreadsheet: true,
   },
-  users: [
-    {
-      id: 'usr-admin-1',
-      username: 'admin',
-      role: 'ADMIN',
-      name: 'Bambang Sudrajat, M.Kom',
-      nip: '19780512 200501 1 009',
-      email: 'admin.pjok@sman1olahraga.sch.id',
-      status: 'Aktif',
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=120&auto=format&fit=crop&q=80',
-    },
-    {
-      id: 'usr-guru-1',
-      username: 'guru',
-      role: 'GURU',
-      name: 'Haryono, S.Pd.Jas, M.Or.',
-      nip: '19850314 201001 1 018',
-      mataPelajaran: 'PJOK Fase E & F',
-      email: 'haryono.pjok@sman1olahraga.sch.id',
-      status: 'Aktif',
-      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=120&auto=format&fit=crop&q=80',
-    },
-    {
-      id: 'usr-guru-2',
-      username: 'ratna',
-      role: 'GURU',
-      name: 'Ratna Sartika, S.Pd.',
-      nip: '19901020 201502 2 004',
-      mataPelajaran: 'PJOK Putri & Senam',
-      email: 'ratna.pjok@sman1olahraga.sch.id',
-      status: 'Aktif',
-      avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=120&auto=format&fit=crop&q=80',
-    },
-    {
-      id: 'usr-murid-1',
-      username: 'murid',
-      role: 'MURID',
-      name: 'Andi Pratama',
-      nis: '240101',
-      nisn: '0089123451',
-      kelasId: 'cls-xi-1',
-      jenisKelamin: 'L',
-      tahunPelajaran: '2026/2027',
-      email: 'andi.pratama@siswa.sman1olahraga.sch.id',
-      status: 'Aktif',
-      avatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=120&auto=format&fit=crop&q=80',
-    },
-    {
-      id: 'usr-murid-2',
-      username: 'budi',
-      role: 'MURID',
-      name: 'Budi Santoso',
-      nis: '240102',
-      nisn: '0089123452',
-      kelasId: 'cls-xi-1',
-      jenisKelamin: 'L',
-      tahunPelajaran: '2026/2027',
-      email: 'budi.santoso@siswa.sman1olahraga.sch.id',
-      status: 'Aktif',
-      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=120&auto=format&fit=crop&q=80',
-    },
-    {
-      id: 'usr-murid-3',
-      username: 'citra',
-      role: 'MURID',
-      name: 'Citra Dewi',
-      nis: '240103',
-      nisn: '0089123453',
-      kelasId: 'cls-xi-1',
-      jenisKelamin: 'P',
-      tahunPelajaran: '2026/2027',
-      email: 'citra.dewi@siswa.sman1olahraga.sch.id',
-      status: 'Aktif',
-      avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=120&auto=format&fit=crop&q=80',
-    },
-    {
-      id: 'usr-murid-4',
-      username: 'dewi',
-      role: 'MURID',
-      name: 'Dewi Lestari',
-      nis: '240104',
-      nisn: '0089123454',
-      kelasId: 'cls-xi-1',
-      jenisKelamin: 'P',
-      tahunPelajaran: '2026/2027',
-      email: 'dewi.lestari@siswa.sman1olahraga.sch.id',
-      status: 'Aktif',
-      avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=120&auto=format&fit=crop&q=80',
-    },
-    {
-      id: 'usr-murid-5',
-      username: 'eko',
-      role: 'MURID',
-      name: 'Eko Saputra',
-      nis: '240105',
-      nisn: '0089123455',
-      kelasId: 'cls-xi-2',
-      jenisKelamin: 'L',
-      tahunPelajaran: '2026/2027',
-      email: 'eko.saputra@siswa.sman1olahraga.sch.id',
-      status: 'Aktif',
-      avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=120&auto=format&fit=crop&q=80',
-    },
-    {
-      id: 'usr-murid-6',
-      username: 'fajar',
-      role: 'MURID',
-      name: 'Fajar Ramadhan',
-      nis: '240106',
-      nisn: '0089123456',
-      kelasId: 'cls-xi-2',
-      jenisKelamin: 'L',
-      tahunPelajaran: '2026/2027',
-      email: 'fajar.r@siswa.sman1olahraga.sch.id',
-      status: 'Aktif',
-      avatar: 'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?w=120&auto=format&fit=crop&q=80',
-    },
-    {
-      id: 'usr-murid-7',
-      username: 'gita',
-      role: 'MURID',
-      name: 'Gita Gutawa',
-      nis: '240107',
-      nisn: '0089123457',
-      kelasId: 'cls-xi-3',
-      jenisKelamin: 'P',
-      tahunPelajaran: '2026/2027',
-      email: 'gita.g@siswa.sman1olahraga.sch.id',
-      status: 'Aktif',
-      avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=120&auto=format&fit=crop&q=80',
-    },
-  ],
+  users: DEFAULT_USERS,
   kelas: [
     {
       id: 'cls-xi-1',
       nama: 'XI 1',
       tingkat: 'XI',
       waliKelasId: 'usr-guru-1',
-      waliKelasNama: 'Haryono, S.Pd.Jas',
+      waliKelasNama: 'I Ketut Agus Nova Anggarawan, S.Pd., Gr.',
       guruPengampuId: 'usr-guru-1',
-      guruPengampuNama: 'Haryono, S.Pd.Jas',
+      guruPengampuNama: 'I Ketut Agus Nova Anggarawan, S.Pd., Gr.',
       tahunPelajaran: '2026/2027',
-      totalMurid: 34,
+      totalMurid: 31,
     },
     {
       id: 'cls-xi-2',
@@ -329,7 +206,7 @@ export const INITIAL_DATABASE: LMSDatabase = {
       waliKelasId: 'usr-guru-2',
       waliKelasNama: 'Ratna Sartika, S.Pd.',
       guruPengampuId: 'usr-guru-1',
-      guruPengampuNama: 'Haryono, S.Pd.Jas',
+      guruPengampuNama: 'I Ketut Agus Nova Anggarawan, S.Pd., Gr.',
       tahunPelajaran: '2026/2027',
       totalMurid: 32,
     },
@@ -338,7 +215,7 @@ export const INITIAL_DATABASE: LMSDatabase = {
       nama: 'XI 3',
       tingkat: 'XI',
       waliKelasId: 'usr-guru-1',
-      waliKelasNama: 'Haryono, S.Pd.Jas',
+      waliKelasNama: 'I Ketut Agus Nova Anggarawan, S.Pd., Gr.',
       guruPengampuId: 'usr-guru-2',
       guruPengampuNama: 'Ratna Sartika, S.Pd.',
       tahunPelajaran: '2026/2027',
@@ -879,76 +756,7 @@ Zona Latihan Efektif: 65% - 85% dari DNM.`,
       dibaca: true,
     },
   ],
-  nilai: [
-    {
-      id: 'nil-1',
-      muridId: 'usr-murid-1',
-      muridNama: 'Andi Pratama',
-      nis: '240101',
-      kelasId: 'cls-xi-1',
-      kelasNama: 'XI 1',
-      semester: '1 (Ganjil)',
-      tugas: 88,
-      quiz: 85,
-      praktik: 92,
-      pengetahuan: 87,
-      keterampilan: 92,
-      sikap: 95,
-      nilaiAkhir: 90,
-      predikat: 'A',
-    },
-    {
-      id: 'nil-2',
-      muridId: 'usr-murid-2',
-      muridNama: 'Budi Santoso',
-      nis: '240102',
-      kelasId: 'cls-xi-1',
-      kelasNama: 'XI 1',
-      semester: '1 (Ganjil)',
-      tugas: 82,
-      quiz: 80,
-      praktik: 86,
-      pengetahuan: 81,
-      keterampilan: 86,
-      sikap: 88,
-      nilaiAkhir: 84,
-      predikat: 'B',
-    },
-    {
-      id: 'nil-3',
-      muridId: 'usr-murid-3',
-      muridNama: 'Citra Dewi',
-      nis: '240103',
-      kelasId: 'cls-xi-1',
-      kelasNama: 'XI 1',
-      semester: '1 (Ganjil)',
-      tugas: 92,
-      quiz: 90,
-      praktik: 95,
-      pengetahuan: 91,
-      keterampilan: 95,
-      sikap: 96,
-      nilaiAkhir: 93,
-      predikat: 'A',
-    },
-    {
-      id: 'nil-4',
-      muridId: 'usr-murid-4',
-      muridNama: 'Dimas Anggara',
-      nis: '240104',
-      kelasId: 'cls-xi-1',
-      kelasNama: 'XI 1',
-      semester: '1 (Ganjil)',
-      tugas: 80,
-      quiz: 75,
-      praktik: 85,
-      pengetahuan: 78,
-      keterampilan: 85,
-      sikap: 85,
-      nilaiAkhir: 81,
-      predikat: 'B',
-    },
-  ],
+  nilai: DEFAULT_NILAI,
 };
 
 export type FirestoreSyncStatus = 'connecting' | 'synced' | 'syncing' | 'offline' | 'error';
@@ -1245,29 +1053,48 @@ class DataStorageService {
 
   private loadFromLocalStorage(): LMSDatabase {
     try {
-      const saved = localStorage.getItem(STORAGE_KEY);
+      const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('lms_pjok_db_v1');
       if (saved) {
         const parsed = JSON.parse(saved);
+        let loadedUsers: User[] = Array.isArray(parsed?.users) && parsed.users.length > 0 ? parsed.users : INITIAL_DATABASE.users;
+        // Auto-upgrade if previous database had old mock users or did not have 31 accurate students
+        const hasAccurateData = loadedUsers.some(
+          (u: any) => u.name === 'Gede Aditya Peratama' || u.name === 'I Ketut Agus Nova Anggarawan, S.Pd., Gr.'
+        );
+        if (!hasAccurateData || loadedUsers.length < 30) {
+          loadedUsers = INITIAL_DATABASE.users;
+        }
+
+        let loadedNilai = Array.isArray(parsed?.nilai) ? parsed.nilai : INITIAL_DATABASE.nilai;
+        if (!hasAccurateData || loadedNilai.length < 30) {
+          loadedNilai = INITIAL_DATABASE.nilai;
+        }
+
+        const primaryTeacher = 'I Ketut Agus Nova Anggarawan, S.Pd., Gr.';
+
         return {
           ...INITIAL_DATABASE,
           ...parsed,
           settings: {
             ...INITIAL_DATABASE.settings,
             ...(parsed?.settings || {}),
+            namaGuruPJOKUtama: parsed?.settings?.namaGuruPJOKUtama && parsed?.settings?.namaGuruPJOKUtama !== 'Haryono, S.Pd.Jas, M.Or.'
+              ? parsed.settings.namaGuruPJOKUtama
+              : primaryTeacher,
           },
-          users: Array.isArray(parsed?.users) && parsed.users.length > 0 ? parsed.users : INITIAL_DATABASE.users,
+          users: loadedUsers,
           kelas: Array.isArray(parsed?.kelas) ? parsed.kelas : INITIAL_DATABASE.kelas,
           mataPelajaran: Array.isArray(parsed?.mataPelajaran) ? parsed.mataPelajaran : INITIAL_DATABASE.mataPelajaran,
           materi: (Array.isArray(parsed?.materi) ? parsed.materi : INITIAL_DATABASE.materi).map((m: any) => ({
             ...m,
-            guruNama: m.guruNama || m.dibuatOleh || 'Haryono, S.Pd.Jas',
-            dibuatOleh: m.dibuatOleh || m.guruNama || 'Haryono, S.Pd.Jas',
+            guruNama: m.guruNama === 'Haryono, S.Pd.Jas' ? primaryTeacher : (m.guruNama || m.dibuatOleh || primaryTeacher),
+            dibuatOleh: m.dibuatOleh === 'Haryono, S.Pd.Jas' ? primaryTeacher : (m.dibuatOleh || m.guruNama || primaryTeacher),
             materiInti: m.materiInti || m.kontenTeks || m.konten || '',
           })),
           tugas: (Array.isArray(parsed?.tugas) ? parsed.tugas : INITIAL_DATABASE.tugas).map((t: any) => ({
             ...t,
-            guruNama: t.guruNama || t.dibuatOleh || 'Haryono, S.Pd.Jas',
-            dibuatOleh: t.dibuatOleh || t.guruNama || 'Haryono, S.Pd.Jas',
+            guruNama: t.guruNama === 'Haryono, S.Pd.Jas' ? primaryTeacher : (t.guruNama || t.dibuatOleh || primaryTeacher),
+            dibuatOleh: t.dibuatOleh === 'Haryono, S.Pd.Jas' ? primaryTeacher : (t.dibuatOleh || t.guruNama || primaryTeacher),
           })),
           pengumpulanTugas: Array.isArray(parsed?.pengumpulanTugas) ? parsed.pengumpulanTugas : INITIAL_DATABASE.pengumpulanTugas,
           quiz: (Array.isArray(parsed?.quiz) ? parsed.quiz : INITIAL_DATABASE.quiz).map((q: any) => {
@@ -1278,8 +1105,8 @@ class DataStorageService {
               ...q,
               soal: rawSoal,
               soalList: rawSoal,
-              guruNama: q.guruNama || q.dibuatOleh || 'Haryono, S.Pd.Jas',
-              dibuatOleh: q.dibuatOleh || q.guruNama || 'Haryono, S.Pd.Jas',
+              guruNama: q.guruNama === 'Haryono, S.Pd.Jas' ? primaryTeacher : (q.guruNama || q.dibuatOleh || primaryTeacher),
+              dibuatOleh: q.dibuatOleh === 'Haryono, S.Pd.Jas' ? primaryTeacher : (q.dibuatOleh || q.guruNama || primaryTeacher),
             };
           }),
           jawabanQuiz: Array.isArray(parsed?.jawabanQuiz) ? parsed.jawabanQuiz : INITIAL_DATABASE.jawabanQuiz,
@@ -1292,7 +1119,7 @@ class DataStorageService {
             materiJudul: p.materiJudul || p.materi || 'Praktik PJOK',
             nilaiTotal: p.nilaiTotal ?? p.nilaiAkhir ?? 80,
             catatanEvaluasi: p.catatanEvaluasi || p.catatanGuru || '',
-            guruPenilai: p.guruPenilai || p.guruNama || 'Haryono, S.Pd.Jas',
+            guruPenilai: p.guruPenilai === 'Haryono, S.Pd.Jas' ? primaryTeacher : (p.guruPenilai || p.guruNama || primaryTeacher),
             rubrik: p.rubrik || {
               sikapAwal: p.aspekNilai?.sikapAwal ?? 3,
               pelaksanaanTeknik: p.aspekNilai?.teknikGerakan ?? 3,
@@ -1305,7 +1132,7 @@ class DataStorageService {
           presensi: Array.isArray(parsed?.presensi) ? parsed.presensi : INITIAL_DATABASE.presensi,
           jurnal: Array.isArray(parsed?.jurnal) ? parsed.jurnal : INITIAL_DATABASE.jurnal,
           notifikasi: Array.isArray(parsed?.notifikasi) ? parsed.notifikasi : INITIAL_DATABASE.notifikasi,
-          nilai: Array.isArray(parsed?.nilai) ? parsed.nilai : INITIAL_DATABASE.nilai,
+          nilai: loadedNilai,
         };
       }
     } catch (e) {
@@ -1383,6 +1210,134 @@ class DataStorageService {
 
   public getQuizList(kelasId?: string): Quiz[] {
     return this.db.quiz.filter((q) => !kelasId || q.kelasId === kelasId);
+  }
+
+  // CSV & Spreadsheet Integration Methods
+  public exportUsersCSV(): string {
+    return exportUsersToCSV(this.db.users);
+  }
+
+  public importUsersCSV(csvText: string): { count: number; message: string } {
+    const importedUsers = parseCSVToUsers(csvText);
+    if (importedUsers.length === 0) {
+      return { count: 0, message: 'Tidak ada data pengguna yang valid ditemukan dalam CSV.' };
+    }
+
+    this.updateDatabase((prev) => {
+      // Merge users by ID or username
+      const existingMap = new Map(prev.users.map((u) => [u.id, u]));
+      for (const u of importedUsers) {
+        existingMap.set(u.id, {
+          ...(existingMap.get(u.id) || {}),
+          ...u,
+        });
+      }
+      return {
+        ...prev,
+        users: Array.from(existingMap.values()),
+        settings: {
+          ...prev.settings,
+          terakhirSinkron: new Date().toISOString(),
+        },
+      };
+    });
+
+    return {
+      count: importedUsers.length,
+      message: `Berhasil mengimpor ${importedUsers.length} data pengguna dari Spreadsheet / CSV!`,
+    };
+  }
+
+  public async syncToLinkedSpreadsheet(webhookUrl?: string): Promise<{ success: boolean; message: string }> {
+    const url = webhookUrl || this.db.settings?.spreadsheetWebhookUrl;
+    if (!url) {
+      return {
+        success: false,
+        message: 'URL Webhook Google Apps Script belum dikonfigurasi.',
+      };
+    }
+
+    try {
+      const payload = this.toSheetsPayload();
+      const res = await syncViaAppsScriptWebhook(url, payload);
+      if (res.success) {
+        this.updateDatabase((prev) => ({
+          ...prev,
+          settings: {
+            ...prev.settings,
+            terakhirSinkron: new Date().toISOString(),
+          },
+        }));
+      }
+      return res;
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.message || 'Gagal menyinkronkan data ke Spreadsheet Webhook.',
+      };
+    }
+  }
+
+  public async pullFromLinkedSpreadsheet(webhookUrl?: string): Promise<{ success: boolean; count: number; message: string }> {
+    const url = webhookUrl || this.db.settings?.spreadsheetWebhookUrl;
+    if (!url) {
+      return {
+        success: false,
+        count: 0,
+        message: 'URL Webhook Google Apps Script belum dikonfigurasi.',
+      };
+    }
+
+    try {
+      const res = await fetchViaAppsScriptWebhook(url);
+      if (!res.success) {
+        return { success: false, count: 0, message: res.message };
+      }
+
+      let importedCount = 0;
+      if (res.data?.USERS && Array.isArray(res.data.USERS) && res.data.USERS.length > 0) {
+        const users = res.data.USERS.map((u: any) => ({
+          id: u.id || `usr-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
+          username: u.username || u.name?.toLowerCase().replace(/\s+/g, '') || 'user',
+          role: u.role || 'MURID',
+          name: u.name || 'Pengguna',
+          email: u.email || '',
+          status: u.status || 'Aktif',
+          nis: u.nis || u.nip || '',
+          nip: u.nip || '',
+          avatar: u.avatar || '',
+          kelasId: u.kelasId || 'cls-xi-1',
+          tahunPelajaran: u.tahunPelajaran || '2026/2027',
+          jenisKelamin: u.jenisKelamin || 'L',
+        }));
+
+        this.updateDatabase((prev) => {
+          const map = new Map(prev.users.map((item) => [item.id, item]));
+          users.forEach((item: User) => map.set(item.id, item));
+          return {
+            ...prev,
+            users: Array.from(map.values()),
+            settings: {
+              ...prev.settings,
+              terakhirSinkron: new Date().toISOString(),
+            },
+          };
+        });
+        importedCount = users.length;
+      }
+
+      return {
+        success: true,
+        count: importedCount,
+        message: `Berhasil menarik ${importedCount} data dari Spreadsheet!`,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        count: 0,
+        message: err?.message || 'Gagal menarik data dari Google Spreadsheet.',
+      };
+    }
   }
 
   // Format data for Google Sheets tables

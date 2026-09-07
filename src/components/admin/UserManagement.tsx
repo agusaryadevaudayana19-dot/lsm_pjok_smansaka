@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   Users,
   UserPlus,
@@ -14,9 +14,16 @@ import {
   CheckCircle,
   XCircle,
   X,
+  FileSpreadsheet,
+  Download,
+  Upload,
+  RefreshCw,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react';
 import { User, UserRole } from '../../types';
 import { dataStorage, LMSDatabase } from '../../services/dataStorage';
+import { GoogleSheetsSyncModal } from '../GoogleSheetsSyncModal';
 
 interface UserManagementProps {
   db: LMSDatabase;
@@ -34,9 +41,51 @@ export const UserManagement: React.FC<UserManagementProps> = ({ db, initialTab =
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedKelas, setSelectedKelas] = useState<string>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [resetPassUser, setResetPassUser] = useState<User | null>(null);
   const [newPassword, setNewPassword] = useState('123456');
+
+  const showToast = (text: string, type: 'success' | 'error' = 'success') => {
+    setToastMsg({ text, type });
+    setTimeout(() => setToastMsg(null), 4000);
+  };
+
+  const handleExportCSV = () => {
+    try {
+      const csv = dataStorage.exportUsersCSV();
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `data_pengguna_pjok_${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      showToast('File CSV data pengguna berhasil diunduh!');
+    } catch (err: any) {
+      showToast('Gagal mengekspor CSV: ' + err.message, 'error');
+    }
+  };
+
+  const handleImportCSVFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target?.result as string;
+      if (text) {
+        const res = dataStorage.importUsersCSV(text);
+        showToast(res.message, res.count > 0 ? 'success' : 'error');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
 
   // Form state for Add/Edit
   const [formData, setFormData] = useState<Partial<User>>({
@@ -166,15 +215,74 @@ export const UserManagement: React.FC<UserManagementProps> = ({ db, initialTab =
             Kelola akun Admin, Guru Pengampu PJOK, dan Murid Rombel XI
           </p>
         </div>
-        <button
-          onClick={handleOpenAdd}
-          id="btn-add-user"
-          className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs transition-all"
-        >
-          <UserPlus className="w-4 h-4" />
-          Tambah {activeTab === 'MURID' ? 'Murid' : activeTab === 'GURU' ? 'Guru' : 'Admin'}
-        </button>
+        <div className="flex items-center flex-wrap gap-2">
+          {/* Hidden File Input for CSV */}
+          <input
+            type="file"
+            ref={fileInputRef}
+            accept=".csv,.txt"
+            onChange={handleImportCSVFile}
+            className="hidden"
+          />
+
+          <button
+            type="button"
+            onClick={handleExportCSV}
+            title="Unduh seluruh data pengguna ke CSV"
+            className="px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5 text-emerald-600" />
+            Ekspor CSV
+          </button>
+
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            title="Impor pembaruan data pengguna dari CSV Spreadsheet"
+            className="px-3 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+          >
+            <Upload className="w-3.5 h-3.5 text-sky-600" />
+            Impor CSV
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsSyncModalOpen(true)}
+            id="btn-open-sheets-sync"
+            className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+            Spreadsheet & Webhook
+          </button>
+
+          <button
+            onClick={handleOpenAdd}
+            id="btn-add-user"
+            className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-bold flex items-center gap-2 shadow-xs transition-all cursor-pointer"
+          >
+            <UserPlus className="w-4 h-4" />
+            Tambah {activeTab === 'MURID' ? 'Murid' : activeTab === 'GURU' ? 'Guru' : 'Admin'}
+          </button>
+        </div>
       </div>
+
+      {/* Toast Notification Banner */}
+      {toastMsg && (
+        <div
+          className={`p-3 rounded-xl text-xs flex items-center gap-2 animate-in fade-in duration-200 ${
+            toastMsg.type === 'success'
+              ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+              : 'bg-rose-50 text-rose-800 border border-rose-200'
+          }`}
+        >
+          {toastMsg.type === 'success' ? (
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          ) : (
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+          )}
+          <span>{toastMsg.text}</span>
+        </div>
+      )}
 
       {/* Tabs */}
       <div className="flex border-b border-slate-200">
@@ -600,6 +708,14 @@ export const UserManagement: React.FC<UserManagementProps> = ({ db, initialTab =
           </div>
         </div>
       )}
+
+      {/* Google Sheets Sync & Webhook Modal */}
+      <GoogleSheetsSyncModal
+        isOpen={isSyncModalOpen}
+        onClose={() => setIsSyncModalOpen(false)}
+        settings={db.settings}
+        db={db}
+      />
     </div>
   );
 };

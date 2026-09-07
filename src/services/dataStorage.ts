@@ -169,6 +169,20 @@ const DEFAULT_QUIZ_SOAL: Soal[] = [
       'Berdasarkan regulasi resmi FIVB, satu tim berhak menyentuh bola maksimal 3 kali sebelum melewati net.',
     bobot: 15,
   },
+  {
+    id: 'soal-6',
+    quizId: 'qz-1',
+    nomor: 6,
+    pertanyaan:
+      'Pada saat mendarat setelah melakukan loncatan smash atau block bola voli, sendi manakah yang harus ditekuk untuk meredam gaya tumbukan (shock absorption) agar mencegah cedera ligamen lutut?',
+    tipe: 'Isian',
+    kategoriSoal: 'HOTS',
+    pilihan: [],
+    kunciJawaban: 'Lutut dan pergelangan kaki',
+    pembahasan:
+      'Analisis Evaluasi Gerakan Motorik: Fleksi sendi lutut (knee flexion) bersama sendi pergelangan kaki (ankle) dan panggul bertindak sebagai peredam kejut mekanis tubuh (deceleration phase). Mendarat dengan tungkai kaku atau lurus meningkatkan risiko cedera robekan ligamen ACL secara drastis.',
+    bobot: 20,
+  },
 ];
 
 export const INITIAL_DATABASE: LMSDatabase = {
@@ -1097,10 +1111,16 @@ class DataStorageService {
             dibuatOleh: t.dibuatOleh === 'Haryono, S.Pd.Jas' ? primaryTeacher : (t.dibuatOleh || t.guruNama || primaryTeacher),
           })),
           pengumpulanTugas: Array.isArray(parsed?.pengumpulanTugas) ? parsed.pengumpulanTugas : INITIAL_DATABASE.pengumpulanTugas,
-          quiz: (Array.isArray(parsed?.quiz) ? parsed.quiz : INITIAL_DATABASE.quiz).map((q: any) => {
-            const rawSoal = Array.isArray(q.soal) && q.soal.length > 0 
+          quiz: (Array.isArray(parsed?.quiz) && parsed.quiz.length > 0 ? parsed.quiz : INITIAL_DATABASE.quiz).map((q: any) => {
+            let rawSoal = Array.isArray(q.soal) && q.soal.length > 0 
               ? q.soal 
               : (Array.isArray(q.soalList) ? q.soalList : []);
+            
+            // Auto-upgrade if quiz has outdated or incomplete question list
+            if (rawSoal.length < 6 || !rawSoal.some((s: any) => s.tipe === 'Mencocokkan Gambar' || s.tipe === 'Tarik Garis')) {
+              rawSoal = DEFAULT_QUIZ_SOAL;
+            }
+
             return {
               ...q,
               soal: rawSoal,

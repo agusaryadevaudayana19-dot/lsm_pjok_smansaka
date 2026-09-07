@@ -18,6 +18,7 @@ import {
   RotateCcw,
   Sparkles,
   Layers,
+  Activity,
 } from 'lucide-react';
 
 interface MuridQuizProps {
@@ -736,44 +737,88 @@ export function MuridQuiz({ currentUser, db }: MuridQuizProps) {
               const myAnswer = answers[s.id];
               const isCorrect = isQuestionAnswerCorrect(s, myAnswer);
 
+              let displayMyAnswer = myAnswer || '(Tidak dijawab)';
+              if (s.tipe === 'Tarik Garis' && myAnswer) {
+                try {
+                  const parsed = JSON.parse(myAnswer);
+                  displayMyAnswer = Object.entries(parsed)
+                    .map(([k, v]) => `${k} ➔ ${v}`)
+                    .join(' | ');
+                } catch {
+                  displayMyAnswer = myAnswer;
+                }
+              }
+
               return (
                 <div
                   key={s.id || idx}
-                  className={`p-4 rounded-2xl border text-xs space-y-2.5 ${
-                    isCorrect ? 'bg-emerald-50/50 border-emerald-200' : 'bg-rose-50/50 border-rose-200'
+                  className={`p-4 rounded-2xl border text-xs space-y-3 transition-all ${
+                    isCorrect ? 'bg-emerald-50/40 border-emerald-200' : 'bg-rose-50/40 border-rose-200'
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="font-bold text-slate-800">
-                      #{idx + 1}. {s.pertanyaan}
-                    </span>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-[10px] font-bold">
+                          #{idx + 1}
+                        </span>
+                        <span className="px-2 py-0.5 bg-purple-100 text-purple-800 rounded text-[10px] font-bold">
+                          {s.tipe || 'Pilihan Ganda'}
+                        </span>
+                        {s.kategoriSoal && (
+                          <span className="px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded text-[10px] font-extrabold">
+                            {s.kategoriSoal}
+                          </span>
+                        )}
+                      </div>
+                      <p className="font-bold text-slate-900 leading-relaxed pt-0.5">
+                        {s.pertanyaan}
+                      </p>
+                    </div>
                     {isCorrect ? (
-                      <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded flex items-center gap-1 text-[10px] shrink-0">
-                        <CheckCircle2 className="w-3 h-3" /> Benar (+{s.bobot || 20})
+                      <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 font-extrabold rounded-lg flex items-center gap-1 text-[11px] shrink-0 border border-emerald-200">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Benar (+{s.bobot || 20})
                       </span>
                     ) : (
-                      <span className="px-2 py-0.5 bg-rose-100 text-rose-800 font-bold rounded flex items-center gap-1 text-[10px] shrink-0">
-                        <XCircle className="w-3 h-3" /> Salah (0)
+                      <span className="px-2.5 py-1 bg-rose-100 text-rose-800 font-extrabold rounded-lg flex items-center gap-1 text-[11px] shrink-0 border border-rose-200">
+                        <XCircle className="w-3.5 h-3.5 text-rose-600" /> Belum Tepat (0)
                       </span>
                     )}
                   </div>
 
-                  <div className="p-3 bg-white/80 rounded-xl space-y-1 text-[11px] border border-slate-100">
-                    <div>
-                      <span className="text-slate-500">Tipe Soal: </span>
-                      <span className="font-bold text-slate-800">{s.tipe || 'Pilihan Ganda'}</span>
+                  {/* Answers Comparison */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                    <div className={`p-2.5 rounded-xl border ${isCorrect ? 'bg-emerald-100/50 border-emerald-200 text-emerald-950' : 'bg-rose-100/50 border-rose-200 text-rose-950'}`}>
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider block opacity-75">
+                        Jawaban Anda:
+                      </span>
+                      <span className="font-semibold leading-relaxed block mt-0.5">
+                        {displayMyAnswer}
+                      </span>
                     </div>
-                    <div>
-                      <span className="text-slate-500">Kunci Jawaban Resmi: </span>
-                      <span className="font-bold text-slate-800">{s.kunciJawaban}</span>
+
+                    <div className="p-2.5 rounded-xl border bg-white border-slate-200 text-slate-800">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider block text-slate-500">
+                        Kunci Jawaban Resmi:
+                      </span>
+                      <span className="font-semibold leading-relaxed block mt-0.5 text-emerald-800">
+                        {s.kunciJawaban}
+                      </span>
                     </div>
-                    {s.pembahasan && (
-                      <div className="pt-1 text-slate-600 border-t border-slate-100 mt-1">
-                        <span className="font-semibold text-purple-700">Analisis Gerak: </span>
-                        {s.pembahasan}
-                      </div>
-                    )}
                   </div>
+
+                  {/* Analisis Evaluasi Gerakan Motorik */}
+                  {s.pembahasan && (
+                    <div className="p-3 bg-purple-50/70 rounded-xl border border-purple-200 text-[11px] space-y-1">
+                      <div className="flex items-center gap-1.5 font-bold text-purple-900">
+                        <Activity className="w-3.5 h-3.5 text-purple-700" />
+                        <span>Analisis Evaluasi Gerakan Motorik & Pembahasan:</span>
+                      </div>
+                      <p className="text-slate-700 leading-relaxed pl-5 font-medium">
+                        {s.pembahasan}
+                      </p>
+                    </div>
+                  )}
                 </div>
               );
             })}

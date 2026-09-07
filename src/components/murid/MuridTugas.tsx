@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { Tugas, PengumpulanTugas, User } from '../../types';
 import { dataStorage, LMSDatabase } from '../../services/dataStorage';
+import { InAppMediaModal } from '../shared/InAppMediaModal';
 
 interface MuridTugasProps {
   db: LMSDatabase;
@@ -25,6 +26,18 @@ export const MuridTugas: React.FC<MuridTugasProps> = ({ db, currentUser }) => {
     'semua'
   );
   const [activeUploadTugas, setActiveUploadTugas] = useState<Tugas | null>(null);
+
+  // In-app media viewer
+  const [mediaModal, setMediaModal] = useState<{
+    isOpen: boolean;
+    url: string;
+    title: string;
+    category?: string;
+  }>({
+    isOpen: false,
+    url: '',
+    title: '',
+  });
 
   // Form upload
   const [linkVideo, setLinkVideo] = useState('');
@@ -198,26 +211,40 @@ export const MuridTugas: React.FC<MuridTugasProps> = ({ db, currentUser }) => {
                         Data Pengumpulan Anda:
                       </span>
                       {submission.linkVideo && (
-                        <a
-                          href={submission.linkVideo}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-rose-600 hover:underline flex items-center gap-1 font-semibold truncate"
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setMediaModal({
+                              isOpen: true,
+                              url: submission.linkVideo!,
+                              title: `Video Tugas: ${t.judul}`,
+                              category: 'Video Tugas Siswa',
+                            })
+                          }
+                          className="text-rose-600 hover:underline flex items-center gap-1 font-semibold truncate text-left"
+                          title="Tonton Video di Aplikasi"
                         >
                           <Video className="w-3.5 h-3.5 shrink-0" />
-                          <span>Link Video: {submission.linkVideo}</span>
-                        </a>
+                          <span>Lihat Video: {submission.linkVideo}</span>
+                        </button>
                       )}
                       {submission.fileUrl && (
-                        <a
-                          href={submission.fileUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-sky-600 hover:underline flex items-center gap-1 font-semibold truncate"
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setMediaModal({
+                              isOpen: true,
+                              url: submission.fileUrl!,
+                              title: `Dokumen Tugas: ${t.judul}`,
+                              category: 'Dokumen / Portofolio',
+                            })
+                          }
+                          className="text-sky-600 hover:underline flex items-center gap-1 font-semibold truncate text-left"
+                          title="Buka Dokumen di Aplikasi"
                         >
                           <FileText className="w-3.5 h-3.5 shrink-0" />
-                          <span>File Dokumen: {submission.fileUrl}</span>
-                        </a>
+                          <span>Lihat Dokumen: {submission.fileUrl}</span>
+                        </button>
                       )}
                       {submission.catatanSiswa && (
                         <p className="text-slate-600 text-[11px] italic">
@@ -338,6 +365,15 @@ export const MuridTugas: React.FC<MuridTugasProps> = ({ db, currentUser }) => {
           </div>
         </div>
       )}
+
+      {/* In-App Media Viewer Modal */}
+      <InAppMediaModal
+        isOpen={mediaModal.isOpen}
+        onClose={() => setMediaModal((prev) => ({ ...prev, isOpen: false }))}
+        url={mediaModal.url}
+        title={mediaModal.title}
+        category={mediaModal.category}
+      />
     </div>
   );
 };

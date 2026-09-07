@@ -50,9 +50,10 @@ export interface Materi {
   kelasIds?: string[];
   fase?: 'E' | 'F';
   semester?: '1' | '2';
-  tujuanPembelajaran?: string;
-  deskripsi: string;
-  kontenTeks?: string;
+  tujuanPembelajaran?: string; // Capaian dan Tujuan Pembelajaran (paling di atas)
+  deskripsi: string; // Uraian Materi & Konsep Gerak
+  materiInti?: string; // Materi Inti (penjelasan mendalam & tahapan gerak)
+  kontenTeks?: string; // Dukungan teks konten tambahan / alias
   konten?: string;
   status?: 'Publish' | 'Draft' | 'Arsip';
   videoUrl?: string;

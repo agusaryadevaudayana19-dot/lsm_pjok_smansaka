@@ -105,7 +105,7 @@ export const signInWithGoogle = async (): Promise<{
     if (err?.code === 'auth/unauthorized-domain' || err?.message?.includes('unauthorized-domain')) {
       console.warn('Google Sign-In domain is not yet authorized.');
       throw new Error(
-        'Domain aplikasi belum terdaftar di Firebase Authorized Domains. Silakan gunakan opsi Pilihan Akun Cepat di layar login.'
+        'Domain aplikasi belum terdaftar di Firebase Authorized Domains. Anda tetap dapat menggunakan seluruh fitur aplikasi dengan akun Guru, Admin, atau Murid terdaftar, atau daftarkan domain ini di Firebase Console.'
       );
     }
 
@@ -136,7 +136,7 @@ export const signInWithGoogle = async (): Promise<{
         }
         console.warn('Retry Google Sign In Error:', retryErr);
         throw new Error(
-          'Koneksi IndexedDB dibatasi di dalam iframe. Silakan buka aplikasi di tab baru atau gunakan Pilihan Akun Cepat.'
+          'Koneksi autentikasi peramban dibatasi di dalam iframe. Silakan buka aplikasi di tab baru atau gunakan login terdaftar.'
         );
       }
     }

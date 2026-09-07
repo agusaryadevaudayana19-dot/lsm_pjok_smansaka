@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { Tugas, PengumpulanTugas, User } from '../../types';
 import { dataStorage, LMSDatabase } from '../../services/dataStorage';
+import { InAppMediaModal } from './InAppMediaModal';
 
 interface TugasManagerProps {
   db: LMSDatabase;
@@ -38,6 +39,18 @@ export const TugasManager: React.FC<TugasManagerProps> = ({ db, currentUser }) =
   const [filterPengumpulanStatus, setFilterPengumpulanStatus] = useState<
     'semua' | 'menunggu' | 'dinilai'
   >('semua');
+
+  // In-App Media Viewer
+  const [mediaModal, setMediaModal] = useState<{
+    isOpen: boolean;
+    url: string;
+    title: string;
+    category?: string;
+  }>({
+    isOpen: false,
+    url: '',
+    title: '',
+  });
 
   // Modals & Active states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -574,24 +587,36 @@ export const TugasManager: React.FC<TugasManagerProps> = ({ db, currentUser }) =
 
                       <div className="flex items-center gap-2 pt-1">
                         {sub.linkVideo && (
-                          <a
-                            href={sub.linkVideo}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="px-2.5 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 hover:bg-rose-100"
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setMediaModal({
+                                isOpen: true,
+                                url: sub.linkVideo!,
+                                title: `Video Tugas - ${sub.muridNama}`,
+                                category: 'Video Tugas Siswa',
+                              })
+                            }
+                            className="px-2.5 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 hover:bg-rose-100 transition-colors"
                           >
                             <Video className="w-3.5 h-3.5" /> Lihat Video Gerakan Siswa
-                          </a>
+                          </button>
                         )}
                         {sub.fileUrl && (
-                          <a
-                            href={sub.fileUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="px-2.5 py-1 bg-sky-50 text-sky-700 border border-sky-200 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 hover:bg-sky-100"
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setMediaModal({
+                                isOpen: true,
+                                url: sub.fileUrl!,
+                                title: `Dokumen Tugas - ${sub.muridNama}`,
+                                category: 'Dokumen / Portofolio',
+                              })
+                            }
+                            className="px-2.5 py-1 bg-sky-50 text-sky-700 border border-sky-200 rounded-lg text-[11px] font-bold inline-flex items-center gap-1 hover:bg-sky-100 transition-colors"
                           >
                             <FileText className="w-3.5 h-3.5" /> Lihat Dokumen / Portofolio
-                          </a>
+                          </button>
                         )}
                       </div>
                     </div>
@@ -816,6 +841,15 @@ export const TugasManager: React.FC<TugasManagerProps> = ({ db, currentUser }) =
           </div>
         </div>
       )}
+
+      {/* In-App Media Viewer Modal */}
+      <InAppMediaModal
+        isOpen={mediaModal.isOpen}
+        onClose={() => setMediaModal((prev) => ({ ...prev, isOpen: false }))}
+        url={mediaModal.url}
+        title={mediaModal.title}
+        category={mediaModal.category}
+      />
     </div>
   );
 };

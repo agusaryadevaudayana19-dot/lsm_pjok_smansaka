@@ -366,6 +366,18 @@ Kunci keberhasilan passing bawah:
 Digunakan untuk mengumpan bola ke spiker dengan presisi tinggi.
 - Bentuk jari-jari tangan seperti mangkuk terbuka tepat di depan dahi.
 - Sentuhan bola hanya dengan ruas-ruas jari, hindari menyentuh telapak tangan.`,
+      materiInti: `### 1. Passing Bawah (Underhand Pass)
+Passing bawah merupakan teknik dasar yang sangat esensial untuk menerima servis lawan maupun menahan spike (serangan tajam).
+Kunci keberhasilan passing bawah:
+- **Kaki**: Dibuka selebar bahu, salah satu kaki sedikit di depan, lutut ditekuk membentuk sudut 100-110 derajat.
+- **Tangan**: Kedua ibu jari sejajar rapat, telapak tangan saling mengunci tanpa menekuk siku saat memukul bola.
+- **Perkenaan**: Bola menyentuh bagian proksimal pergelangan tangan (sekitar 5-10 cm di atas pergelangan).
+- **Gerakan Lanjutan**: Dorongan berasal dari meluruskan tungkai kaki, bukan semata-mata mengayunkan lengan.
+
+### 2. Passing Atas (Overhand Set)
+Digunakan untuk mengumpan bola ke spiker dengan presisi tinggi.
+- Bentuk jari-jari tangan seperti mangkuk terbuka tepat di depan dahi.
+- Sentuhan bola hanya dengan ruas-ruas jari, hindari menyentuh telapak tangan.`,
       videoUrl: 'https://www.youtube.com/watch?v=0e68H4Q26pA',
       gambarUrl: 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=800&auto=format&fit=crop&q=80',
       pdfUrl: 'https://pjok.kemdikbud.go.id/modul-bola-voli-fase-f.pdf',
@@ -388,6 +400,10 @@ Digunakan untuk mengumpan bola ke spiker dengan presisi tinggi.
       deskripsi:
         'Materi ini menekankan kecepatan pengambilan keputusan saat transisi menyerang dan akurasi lay-up di bawah tekanan lawan.',
       kontenTeks: `### Fundamental Bola Basket
+1. **Dribble Rendah**: Melindungi bola dari jangkauan lawan dengan membungkukkan badan.
+2. **Chest Pass & Bounce Pass**: Umpan cepat setinggi dada dan umpan pantul untuk membelah pertahanan zone defense.
+3. **Lay-Up Shoot**: Langkah berirama dua langkah (kanan-kiri-lompat) dengan memantulkan bola di sudut kotak papan pantul.`,
+      materiInti: `### Fundamental Bola Basket
 1. **Dribble Rendah**: Melindungi bola dari jangkauan lawan dengan membungkukkan badan.
 2. **Chest Pass & Bounce Pass**: Umpan cepat setinggi dada dan umpan pantul untuk membelah pertahanan zone defense.
 3. **Lay-Up Shoot**: Langkah berirama dua langkah (kanan-kiri-lompat) dengan memantulkan bola di sudut kotak papan pantul.`,
@@ -414,6 +430,10 @@ Digunakan untuk mengumpan bola ke spiker dengan presisi tinggi.
 Langkah kaki adalah 70% keberhasilan bermain bulutangkis. Posisi tubuh selalu kembali ke titik tengah (home base) setelah melakukan pukulan.
 ### Pukulan Smash
 Gunakan lecutan pergelangan tangan (pronation) saat raket menyentuh kepala shuttlecock di titik optimal.`,
+      materiInti: `### Footwork Bulutangkis
+Langkah kaki adalah 70% keberhasilan bermain bulutangkis. Posisi tubuh selalu kembali ke titik tengah (home base) setelah melakukan pukulan.
+### Pukulan Smash
+Gunakan lecutan pergelangan tangan (pronation) saat raket menyentuh kepala shuttlecock di titik optimal.`,
       gambarUrl: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800&auto=format&fit=crop&q=80',
       aktivitasMurid:
         'Latihan shuttle-run 6 titik sudut lapangan selama 3 set x 30 detik untuk melatih daya ledak.',
@@ -433,6 +453,15 @@ Gunakan lecutan pergelangan tangan (pronation) saat raket menyentuh kepala shutt
       deskripsi:
         'Memahami konsep 220 - Usia untuk menentukan intensitas latihan aerobik pada zona pembakaran lemak dan penguatan kardiovaskular.',
       kontenTeks: `### Komponen Kebugaran Jasmani
+1. Daya Tahan Kardiorespirasi (Cardiovascular Endurance)
+2. Kekuatan Otot (Muscular Strength)
+3. Kelenturan (Flexibility)
+4. Komposisi Tubuh (Body Composition)
+
+**Rumus Denyut Nadi Maksimal (DNM):**
+DNM = 220 - Usia
+Zona Latihan Efektif: 65% - 85% dari DNM.`,
+      materiInti: `### Komponen Kebugaran Jasmani
 1. Daya Tahan Kardiorespirasi (Cardiovascular Endurance)
 2. Kekuatan Otot (Muscular Strength)
 3. Kelenturan (Flexibility)
@@ -1174,6 +1203,7 @@ class DataStorageService {
             ...m,
             guruNama: m.guruNama || m.dibuatOleh || 'Haryono, S.Pd.Jas',
             dibuatOleh: m.dibuatOleh || m.guruNama || 'Haryono, S.Pd.Jas',
+            materiInti: m.materiInti || m.kontenTeks || m.konten || '',
           })),
           tugas: (Array.isArray(parsed?.tugas) ? parsed.tugas : INITIAL_DATABASE.tugas).map((t: any) => ({
             ...t,

@@ -58,7 +58,9 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
     text: string;
   } | null>(null);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [copiedDomain, setCopiedDomain] = useState(false);
   const [csvInput, setCsvInput] = useState('');
+  const currentHostname = typeof window !== 'undefined' ? window.location.hostname : '';
 
   const currentDb = db || dataStorage.getDatabase();
   const activeSettings: PengaturanSekolah = settings || currentDb.settings || {
@@ -651,6 +653,61 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
           {/* TAB 4: GOOGLE DRIVE OAUTH */}
           {activeTab === 'oauth' && (
             <div className="space-y-4">
+              {/* Recommendation Callout */}
+              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl space-y-2 text-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-emerald-600" />
+                    <span className="font-bold text-emerald-900 uppercase">
+                      Metode Utama & Paling Praktis (Bebas Kendala Domain):
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('webhook')}
+                    className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-[11px] font-bold shadow-xs cursor-pointer"
+                  >
+                    Beralih ke Webhook 2-Arah →
+                  </button>
+                </div>
+                <p className="text-emerald-800 leading-relaxed">
+                  Tab <strong>Sinkronisasi 2 Arah (Webhook)</strong> dan <strong>Impor & Ekspor CSV</strong> bekerja <strong>100% tanpa memerlukan login pop-up Google</strong> ataupun pendaftaran domain di Firebase Console!
+                </p>
+              </div>
+
+              {/* Authorized Domain Helper Card */}
+              <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-xl space-y-2 text-xs text-amber-900">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold uppercase flex items-center gap-1.5 text-amber-950">
+                    <AlertCircle className="w-4 h-4 text-amber-600" />
+                    Info Firebase Authorized Domains
+                  </span>
+                  {currentHostname && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(currentHostname);
+                        setCopiedDomain(true);
+                        setTimeout(() => setCopiedDomain(false), 2500);
+                      }}
+                      className="px-2.5 py-1 bg-white hover:bg-amber-100 border border-amber-300 rounded text-[11px] font-bold text-amber-900 flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      {copiedDomain ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copiedDomain ? 'Domain Tersalin!' : 'Salin Domain Ini'}
+                    </button>
+                  )}
+                </div>
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  Jika muncul peringatan <em>"Domain belum terdaftar di Firebase Authorized Domains"</em> saat menekan tombol Masuk Google:
+                </p>
+                <div className="p-2 bg-white/80 border border-amber-200 rounded-lg font-mono text-[11px] text-slate-800 flex items-center justify-between">
+                  <span>Domain Anda: <strong>{currentHostname || 'ais-dev-...run.app'}</strong></span>
+                </div>
+                <p className="text-[11px] text-amber-800 leading-relaxed">
+                  Cara mendaftarkan domain: Buka <strong>Firebase Console → Authentication → Settings → Authorized domains → Add domain</strong>, lalu tempelkan domain di atas.
+                </p>
+              </div>
+
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex items-center justify-between flex-wrap gap-3">
                 <div>
                   <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider block">
@@ -679,7 +736,7 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
                   <button
                     onClick={handleConnectGoogle}
                     disabled={isLoading}
-                    className="px-4 py-2 bg-white text-slate-700 hover:bg-slate-50 border border-slate-300 rounded-xl font-medium text-xs shadow-xs flex items-center gap-2 transition-all"
+                    className="px-4 py-2 bg-white text-slate-700 hover:bg-slate-50 border border-slate-300 rounded-xl font-medium text-xs shadow-xs flex items-center gap-2 transition-all cursor-pointer"
                   >
                     Masuk dengan Akun Google
                   </button>

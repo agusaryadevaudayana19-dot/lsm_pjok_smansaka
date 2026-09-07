@@ -103,9 +103,10 @@ export const signInWithGoogle = async (): Promise<{
 
     // 3. Domain is not yet authorized in Firebase Console
     if (err?.code === 'auth/unauthorized-domain' || err?.message?.includes('unauthorized-domain')) {
-      console.warn('Google Sign-In domain is not yet authorized.');
+      const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'domain ini';
+      console.warn('Google Sign-In domain is not yet authorized:', currentHost);
       throw new Error(
-        'Domain aplikasi belum terdaftar di Firebase Authorized Domains. Anda tetap dapat menggunakan seluruh fitur aplikasi dengan akun Guru, Admin, atau Murid terdaftar, atau daftarkan domain ini di Firebase Console.'
+        `Domain aplikasi (${currentHost}) belum terdaftar di Firebase Authorized Domains. Anda tetap dapat menggunakan seluruh fitur aplikasi dengan akun Guru, Admin, atau Murid terdaftar, serta menyinkronkan data dengan Spreadsheet melalui Webhook atau CSV tanpa login Google.`
       );
     }
 

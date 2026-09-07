@@ -108,18 +108,35 @@ export interface PengumpulanTugas {
   catatanGuru?: string;
 }
 
-export type TipeSoal = 'Pilihan Ganda' | 'Benar/Salah' | 'Isian';
+export type TipeSoal =
+  | 'Pilihan Ganda'
+  | 'Benar/Salah'
+  | 'Mencocokkan Gambar'
+  | 'Tarik Garis'
+  | 'Urutan Gerak'
+  | 'Isian';
+
+export interface MatchingPair {
+  id?: string;
+  left: string;
+  right: string;
+  imageUrl?: string;
+}
 
 export interface Soal {
   id: string;
   quizId?: string;
+  nomor?: number;
   pertanyaan: string;
   tipe?: TipeSoal;
   kategoriSoal?: 'HOTS' | 'AKM' | 'Standar';
-  pilihan: string[]; // Options for PG: A, B, C, D
+  pilihan: string[]; // Options for PG: A, B, C, D, E
   kunciJawaban: string;
   pembahasan?: string;
   bobot: number;
+  gambarUrl?: string;
+  matchingPairs?: MatchingPair[];
+  steps?: string[];
 }
 
 export type SoalQuiz = Soal;
@@ -142,6 +159,7 @@ export interface Quiz {
   acakJawaban?: boolean;
   tampilkanPembahasan?: boolean;
   dibuatOleh?: string;
+  dibuatPada?: string;
   status?: 'Publish' | 'Draft' | 'Arsip';
   soalList?: Soal[];
   soal?: Soal[];

@@ -19,9 +19,11 @@ import {
   Filter,
   Sparkles,
   BookOpen,
+  Upload,
 } from 'lucide-react';
 import { Quiz, Soal, JawabanQuiz, User } from '../../types';
 import { dataStorage, LMSDatabase } from '../../services/dataStorage';
+import { UploadDataModal } from './UploadDataModal';
 
 interface QuizManagerProps {
   db: LMSDatabase;
@@ -36,8 +38,42 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ db, currentUser }) => 
 
   // Modals & detail view
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null);
   const [activeJawabanDetail, setActiveJawabanDetail] = useState<JawabanQuiz | null>(null);
+
+  const handleImportBankSoal = (importedSoal: Soal[]) => {
+    if (isModalOpen) {
+      // If currently editing a quiz, append to form.soal
+      const existing = form.soal || [];
+      const updated = [...existing, ...importedSoal].map((s, idx) => ({ ...s, nomor: idx + 1 }));
+      setForm((prev) => ({ ...prev, soal: updated }));
+      alert(`Berhasil menambahkan ${importedSoal.length} butir soal ke dalam formulir kuis ini!`);
+    } else {
+      // Create new quiz package
+      const newQ: Quiz = {
+        id: `quiz-imp-${Date.now()}`,
+        judul: `Bank Soal PJOK Impor (${importedSoal.length} Butir)`,
+        materiJudul: 'Asesmen Komprehensif PJOK',
+        durasiMenit: 30,
+        acakSoal: true,
+        acakJawaban: true,
+        tampilkanPembahasan: true,
+        status: 'Publish',
+        kelasIds: db.kelas.map((k) => k.id),
+        dibuatPada: new Date().toISOString().slice(0, 10),
+        dibuatOleh: currentUser.name,
+        guruNama: currentUser.name,
+        soal: importedSoal,
+        soalList: importedSoal,
+      };
+      dataStorage.updateDatabase((prev) => ({
+        ...prev,
+        quiz: [newQ, ...prev.quiz],
+      }));
+      alert(`Berhasil menambahkan paket Bank Soal baru dengan ${importedSoal.length} butir soal!`);
+    }
+  };
 
   // Form state
   const [form, setForm] = useState<Partial<Quiz>>({
@@ -229,7 +265,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ db, currentUser }) => 
         nomor: (form.soal?.length || 0) + 1,
         pertanyaan: '',
         tipe: 'Pilihan Ganda' as const,
-        pilihan: ['', '', '', ''],
+        pilihan: ['', '', '', '', ''],
         kunciJawaban: '',
         pembahasan: '',
         bobot: 20,
@@ -275,13 +311,22 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ db, currentUser }) => 
             </p>
           </div>
 
-          <button
-            onClick={handleOpenAdd}
-            className="self-start sm:self-auto px-4 py-2.5 bg-white text-purple-950 hover:bg-purple-50 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2 shrink-0"
-          >
-            <Plus className="w-4 h-4 text-purple-600" />
-            Buat Quiz Baru
-          </button>
+          <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+            <button
+              onClick={() => setIsUploadModalOpen(true)}
+              className="px-3.5 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-2 backdrop-blur-xs border border-white/20"
+            >
+              <Upload className="w-4 h-4 text-purple-200" />
+              <span>Upload Bank Soal</span>
+            </button>
+            <button
+              onClick={handleOpenAdd}
+              className="px-4 py-2.5 bg-white text-purple-950 hover:bg-purple-50 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2 shrink-0"
+            >
+              <Plus className="w-4 h-4 text-purple-600" />
+              Buat Quiz Baru
+            </button>
+          </div>
         </div>
 
         {/* Quick Stats */}
@@ -723,13 +768,23 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ db, currentUser }) => 
                   <span className="font-extrabold text-slate-800 text-sm">
                     Daftar Butir Soal ({(form.soal || []).length})
                   </span>
-                  <button
-                    type="button"
-                    onClick={handleAddQuestion}
-                    className="px-3 py-1 bg-purple-50 text-purple-700 hover:bg-purple-100 font-bold rounded-lg text-xs flex items-center gap-1"
-                  >
-                    <Plus className="w-3.5 h-3.5" /> Tambah Soal
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setIsUploadModalOpen(true)}
+                      className="px-3 py-1 bg-slate-100 text-slate-700 hover:bg-slate-200 font-bold rounded-lg text-xs flex items-center gap-1"
+                    >
+                      <Upload className="w-3.5 h-3.5 text-purple-600" />
+                      <span>Upload Soal</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAddQuestion}
+                      className="px-3 py-1 bg-purple-50 text-purple-700 hover:bg-purple-100 font-bold rounded-lg text-xs flex items-center gap-1"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Tambah Soal
+                    </button>
+                  </div>
                 </div>
 
                 <div className="space-y-4 max-h-80 overflow-y-auto pr-1">
@@ -738,10 +793,23 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ db, currentUser }) => 
                       key={s.id || qIdx}
                       className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-2.5"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-black text-purple-800 text-xs">
-                          Soal Nomor #{qIdx + 1}
-                        </span>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-purple-800 text-xs">
+                            Soal #{qIdx + 1}
+                          </span>
+                          <select
+                            value={s.tipe || 'Pilihan Ganda'}
+                            onChange={(e) => handleQuestionChange(qIdx, 'tipe', e.target.value)}
+                            className="px-2 py-0.5 bg-white border border-slate-200 rounded-lg text-[11px] font-semibold text-slate-700 focus:outline-hidden"
+                          >
+                            <option value="Pilihan Ganda">Pilihan Ganda (A - E)</option>
+                            <option value="Benar/Salah">Benar / Salah</option>
+                            <option value="Mencocokkan Gambar">Mencocokkan Gambar</option>
+                            <option value="Tarik Garis">Tarik Garis</option>
+                            <option value="Isian">Isian</option>
+                          </select>
+                        </div>
                         {(form.soal?.length || 0) > 1 && (
                           <button
                             type="button"
@@ -763,35 +831,72 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ db, currentUser }) => 
                       />
 
                       {/* Options */}
-                      <div className="space-y-1.5">
-                        <span className="text-[10px] font-bold text-slate-500">Pilihan Jawaban:</span>
-                        {s.pilihan.map((opt, optIdx) => (
-                          <div key={optIdx} className="flex items-center gap-2">
-                            <span className="w-5 text-center font-bold text-slate-400 text-[11px]">
-                              {String.fromCharCode(65 + optIdx)}.
-                            </span>
-                            <input
-                              type="text"
-                              required
-                              placeholder={`Opsi ${String.fromCharCode(65 + optIdx)}`}
-                              value={opt}
-                              onChange={(e) => handleOptionChange(qIdx, optIdx, e.target.value)}
-                              className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleQuestionChange(qIdx, 'kunciJawaban', opt)}
-                              className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold whitespace-nowrap transition-colors ${
-                                s.kunciJawaban === opt && opt !== ''
-                                  ? 'bg-emerald-600 text-white'
-                                  : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
-                              }`}
-                            >
-                              {s.kunciJawaban === opt && opt !== '' ? 'Kunci Jawaban' : 'Pilih sbg Kunci'}
-                            </button>
+                      {s.tipe === 'Benar/Salah' ? (
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] font-bold text-slate-500">Pilihan:</span>
+                          <div className="flex gap-2">
+                            {['Benar', 'Salah'].map((val) => (
+                              <button
+                                key={val}
+                                type="button"
+                                onClick={() => handleQuestionChange(qIdx, 'kunciJawaban', val)}
+                                className={`flex-1 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                                  s.kunciJawaban === val
+                                    ? 'bg-emerald-600 text-white border-emerald-600'
+                                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                                }`}
+                              >
+                                {val}
+                              </button>
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-bold text-slate-500">Pilihan Jawaban (A sampai E):</span>
+                            {s.pilihan.length < 5 && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const newQuestions = [...(form.soal || [])];
+                                  newQuestions[qIdx].pilihan = [...newQuestions[qIdx].pilihan, ''];
+                                  setForm({ ...form, soal: newQuestions });
+                                }}
+                                className="text-[10px] text-purple-700 font-bold hover:underline"
+                              >
+                                + Tambah Opsi {String.fromCharCode(65 + s.pilihan.length)}
+                              </button>
+                            )}
+                          </div>
+                          {s.pilihan.map((opt, optIdx) => (
+                            <div key={optIdx} className="flex items-center gap-2">
+                              <span className="w-5 text-center font-bold text-slate-400 text-[11px]">
+                                {String.fromCharCode(65 + optIdx)}.
+                              </span>
+                              <input
+                                type="text"
+                                required
+                                placeholder={`Opsi ${String.fromCharCode(65 + optIdx)}`}
+                                value={opt}
+                                onChange={(e) => handleOptionChange(qIdx, optIdx, e.target.value)}
+                                className="w-full px-2.5 py-1 bg-white border border-slate-200 rounded-lg text-xs"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleQuestionChange(qIdx, 'kunciJawaban', opt)}
+                                className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold whitespace-nowrap transition-colors ${
+                                  s.kunciJawaban === opt && opt !== ''
+                                    ? 'bg-emerald-600 text-white'
+                                    : 'bg-slate-200 text-slate-600 hover:bg-slate-300'
+                                }`}
+                              >
+                                {s.kunciJawaban === opt && opt !== '' ? 'Kunci' : 'Jadikan Kunci'}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
 
                       <div>
                         <label className="block text-[10px] font-bold text-slate-500 mb-0.5">
@@ -830,6 +935,13 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ db, currentUser }) => 
           </div>
         </div>
       )}
+      {/* Upload Data Modal */}
+      <UploadDataModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        type="bankSoal"
+        onImport={handleImportBankSoal}
+      />
     </div>
   );
 };

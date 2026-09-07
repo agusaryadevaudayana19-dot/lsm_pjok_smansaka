@@ -17,10 +17,12 @@ import {
   Target,
   BookOpen,
   Eye,
+  Upload,
 } from 'lucide-react';
 import { Materi, User } from '../../types';
 import { dataStorage, LMSDatabase } from '../../services/dataStorage';
 import { InAppMediaModal, parseMediaUrl } from './InAppMediaModal';
+import { UploadDataModal } from './UploadDataModal';
 
 interface MateriManagerProps {
   db: LMSDatabase;
@@ -34,6 +36,7 @@ export const MateriManager: React.FC<MateriManagerProps> = ({ db, currentUser })
 
   // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [editingMateri, setEditingMateri] = useState<Materi | null>(null);
   const [previewDetailMateri, setPreviewDetailMateri] = useState<Materi | null>(null);
 
@@ -189,6 +192,14 @@ export const MateriManager: React.FC<MateriManagerProps> = ({ db, currentUser })
     });
   };
 
+  const handleImportMateri = (imported: Materi[]) => {
+    dataStorage.updateDatabase((prev) => ({
+      ...prev,
+      materi: [...imported, ...prev.materi],
+    }));
+    alert(`Berhasil menambahkan ${imported.length} modul materi baru ke database!`);
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -203,13 +214,22 @@ export const MateriManager: React.FC<MateriManagerProps> = ({ db, currentUser })
           </p>
         </div>
 
-        <button
-          onClick={handleOpenAdd}
-          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5 self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Tambah Modul PJOK</span>
-        </button>
+        <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+          <button
+            onClick={() => setIsUploadModalOpen(true)}
+            className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5"
+          >
+            <Upload className="w-4 h-4 text-emerald-600" />
+            <span>Upload Materi</span>
+          </button>
+          <button
+            onClick={handleOpenAdd}
+            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center justify-center gap-1.5"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Tambah Modul PJOK</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter and Search Bar */}
@@ -767,6 +787,14 @@ export const MateriManager: React.FC<MateriManagerProps> = ({ db, currentUser })
         url={mediaModal.url}
         title={mediaModal.title}
         category={mediaModal.category}
+      />
+
+      {/* Upload Data Modal */}
+      <UploadDataModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        type="materi"
+        onImport={handleImportMateri}
       />
     </div>
   );

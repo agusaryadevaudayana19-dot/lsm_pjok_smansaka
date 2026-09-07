@@ -50,6 +50,7 @@ const DEFAULT_QUIZ_SOAL: Soal[] = [
   {
     id: 'soal-1',
     quizId: 'qz-1',
+    nomor: 1,
     pertanyaan:
       'Ketika seorang pemain menerima smash keras lawan, mengapa posisi tangan passing bawah harus dikunci lurus dan siku tidak boleh tertekuk?',
     tipe: 'Pilihan Ganda',
@@ -57,51 +58,109 @@ const DEFAULT_QUIZ_SOAL: Soal[] = [
     pilihan: [
       'Agar pantulan bola stabil dan arah lambungan mudah dikontrol ke arah setter',
       'Agar bola langsung kembali ke lapangan lawan tanpa disentuh setter',
-      'Untuk menghindari pelanggaran double touch oleh wasit',
+      'Untuk menghindari terjadinya pelanggaran double touch oleh wasit',
       'Agar kecepatan bola meningkat tajam saat memantul ke atas',
+      'Untuk meredam kekuatan smash tanpa mengubah arah lintas bola',
     ],
     kunciJawaban: 'Agar pantulan bola stabil dan arah lambungan mudah dikontrol ke arah setter',
     pembahasan:
       'Siku yang dikunci lurus menciptakan bidang datar solid pada lengan bawah, meminimalkan getaran dan menghasilkan pantulan elastis yang terarah.',
-    bobot: 25,
+    bobot: 20,
   },
   {
     id: 'soal-2',
     quizId: 'qz-1',
+    nomor: 2,
     pertanyaan:
-      'Dalam sistem perputaran pemain (rotasi) bola voli modern, rotasi dilakukan searah jarum jam setiap kali regu penerima servis berhasil mematikan bola lawan.',
+      'Dalam sistem rotasi bola voli modern, rotasi dilakukan searah jarum jam setiap kali regu penerima servis berhasil mematikan bola lawan dan merebut hak servis.',
     tipe: 'Benar/Salah',
     kategoriSoal: 'AKM',
     pilihan: ['Benar', 'Salah'],
     kunciJawaban: 'Benar',
     pembahasan:
-      'Rotasi searah jarum jam (posisi 1 ke 6, 6 ke 5, dst) dilakukan saat tim berpindah hak servis.',
-    bobot: 25,
+      'Rotasi searah jarum jam (posisi 1 ke 6, 6 ke 5, dst) dilakukan saat tim berhasil merebut hak servis dari lawan.',
+    bobot: 15,
   },
   {
     id: 'soal-3',
     quizId: 'qz-1',
+    nomor: 3,
     pertanyaan:
-      'Berapa jumlah sentuhan maksimal yang diperbolehkan bagi satu tim sebelum bola harus diseberangkan ke daerah lawan (tidak termasuk sentuhan block)?',
-    tipe: 'Pilihan Ganda',
-    kategoriSoal: 'Standar',
-    pilihan: ['1 kali', '2 kali', '3 kali', '4 kali'],
-    kunciJawaban: '3 kali',
+      'Cocokkan gambar teknik olahraga di bawah ini dengan nama teknik gerak dasar yang paling tepat!',
+    tipe: 'Mencocokkan Gambar',
+    kategoriSoal: 'HOTS',
+    gambarUrl: 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=800&auto=format&fit=crop&q=80',
+    pilihan: [
+      'Passing Bawah Bola Voli',
+      'Smash Keras Menukik',
+      'Block / Bendungan Net',
+      'Servis Atas Mengapung',
+      'Passing Atas (Set Up)',
+    ],
+    kunciJawaban: 'Passing Bawah Bola Voli',
     pembahasan:
-      'Satu tim berhak menyentuh bola maksimal 3 kali (biasanya dig-set-spike) sebelum bola melewati net.',
+      'Gambar menunjukkan posisi kedua tangan rapat lurus ke depan bawah dengan lutut sedikit ditekuk untuk menerima bola.',
+    matchingPairs: [
+      {
+        id: 'mp-1',
+        left: 'Passing Bawah',
+        right: 'Menerima servis dan smash lawan di depan bawah',
+        imageUrl: 'https://images.unsplash.com/photo-1612872087720-bb876e2e67d1?w=400&auto=format&fit=crop&q=80',
+      },
+      {
+        id: 'mp-2',
+        left: 'Lay-Up Shoot',
+        right: 'Tembakan melayang dua langkah ke papan pantul basket',
+        imageUrl: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=400&auto=format&fit=crop&q=80',
+      },
+      {
+        id: 'mp-3',
+        left: 'Smash Bulutangkis',
+        right: 'Pukulan overhead keras menukik tajam ke area lawan',
+        imageUrl: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=400&auto=format&fit=crop&q=80',
+      },
+    ],
     bobot: 25,
   },
   {
     id: 'soal-4',
     quizId: 'qz-1',
+    nomor: 4,
     pertanyaan:
-      'Pemain bertahan khusus dalam permainan bola voli yang bertugas murni menahan serangan dan dilarang melakukan smash ataupun servis disebut...',
-    tipe: 'Isian',
-    kategoriSoal: 'Standar',
+      'Tarik garis / jodohkan peran pemain bola voli (Kolom A) dengan tugas taktis utamanya di lapangan (Kolom B)!',
+    tipe: 'Tarik Garis',
+    kategoriSoal: 'AKM',
     pilihan: [],
-    kunciJawaban: 'Libero',
-    pembahasan: 'Libero memakai seragam berbeda warna dan memiliki aturan spesifik pertahanan.',
+    matchingPairs: [
+      { left: 'Tosser / Setter', right: 'Mengatur serangan dan mengumpan bola matang untuk spiker' },
+      { left: 'Libero', right: 'Pemain bertahan murni, dilarang menyerang dan servis' },
+      { left: 'Spiker / Smasher', right: 'Mengeksekusi bola di atas net untuk mencetak poin serangan' },
+      { left: 'Blocker', right: 'Membendung serangan smash lawan di dekat bibir net' },
+    ],
+    kunciJawaban: 'Tosser=Mengatur serangan, Libero=Pemain bertahan murni, Spiker=Mengeksekusi bola, Blocker=Membendung serangan',
+    pembahasan:
+      'Setiap posisi dalam bola voli memiliki spesialisasi peran yang saling melengkapi dalam formasi taktik regu.',
     bobot: 25,
+  },
+  {
+    id: 'soal-5',
+    quizId: 'qz-1',
+    nomor: 5,
+    pertanyaan:
+      'Berapa jumlah sentuhan maksimal yang diperbolehkan bagi satu regu sebelum bola harus diseberangkan ke daerah lawan (tidak termasuk sentuhan bendungan/block)?',
+    tipe: 'Pilihan Ganda',
+    kategoriSoal: 'Standar',
+    pilihan: [
+      '1 kali sentuhan langsung',
+      '2 kali sentuhan beruntun',
+      '3 kali sentuhan tim',
+      '4 kali sentuhan bebas',
+      '5 kali sentuhan dalam reli panjang',
+    ],
+    kunciJawaban: '3 kali sentuhan tim',
+    pembahasan:
+      'Berdasarkan regulasi resmi FIVB, satu tim berhak menyentuh bola maksimal 3 kali sebelum melewati net.',
+    bobot: 15,
   },
 ];
 

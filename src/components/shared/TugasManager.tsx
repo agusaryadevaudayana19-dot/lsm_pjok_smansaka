@@ -21,10 +21,12 @@ import {
   Check,
   ChevronRight,
   Filter,
+  Upload,
 } from 'lucide-react';
 import { Tugas, PengumpulanTugas, User } from '../../types';
 import { dataStorage, LMSDatabase } from '../../services/dataStorage';
 import { InAppMediaModal } from './InAppMediaModal';
+import { UploadDataModal } from './UploadDataModal';
 
 interface TugasManagerProps {
   db: LMSDatabase;
@@ -54,10 +56,19 @@ export const TugasManager: React.FC<TugasManagerProps> = ({ db, currentUser }) =
 
   // Modals & Active states
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [editingTugas, setEditingTugas] = useState<Tugas | null>(null);
   const [activeReviewSubmission, setActiveReviewSubmission] = useState<PengumpulanTugas | null>(null);
   const [reviewNilai, setReviewNilai] = useState<number>(85);
   const [reviewCatatan, setReviewCatatan] = useState<string>('');
+
+  const handleImportTugas = (imported: Tugas[]) => {
+    dataStorage.updateDatabase((prev) => ({
+      ...prev,
+      tugas: [...imported, ...prev.tugas],
+    }));
+    alert(`Berhasil menambahkan ${imported.length} tugas baru ke database!`);
+  };
 
   // Form state
   const [form, setForm] = useState<Partial<Tugas>>({
@@ -240,13 +251,22 @@ export const TugasManager: React.FC<TugasManagerProps> = ({ db, currentUser }) =
             </p>
           </div>
 
-          <button
-            onClick={handleOpenAdd}
-            className="self-start sm:self-auto px-4 py-2.5 bg-white text-sky-950 hover:bg-sky-50 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2 shrink-0"
-          >
-            <Plus className="w-4 h-4 text-sky-600" />
-            Buat Tugas Baru
-          </button>
+          <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+            <button
+              onClick={() => setIsUploadModalOpen(true)}
+              className="px-3.5 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-xs font-bold transition-all shadow-xs flex items-center gap-2 backdrop-blur-xs border border-white/20"
+            >
+              <Upload className="w-4 h-4 text-sky-200" />
+              <span>Upload Tugas</span>
+            </button>
+            <button
+              onClick={handleOpenAdd}
+              className="px-4 py-2.5 bg-white text-sky-950 hover:bg-sky-50 rounded-xl text-xs font-bold transition-all shadow-sm flex items-center gap-2 shrink-0"
+            >
+              <Plus className="w-4 h-4 text-sky-600" />
+              Buat Tugas Baru
+            </button>
+          </div>
         </div>
 
         {/* Quick Stats */}
@@ -849,6 +869,14 @@ export const TugasManager: React.FC<TugasManagerProps> = ({ db, currentUser }) =
         url={mediaModal.url}
         title={mediaModal.title}
         category={mediaModal.category}
+      />
+
+      {/* Upload Data Modal */}
+      <UploadDataModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        type="tugas"
+        onImport={handleImportTugas}
       />
     </div>
   );

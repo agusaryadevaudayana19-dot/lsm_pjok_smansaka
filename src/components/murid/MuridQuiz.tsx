@@ -12,6 +12,12 @@ import {
   CheckCircle2,
   XCircle,
   BookOpen,
+  Image as ImageIcon,
+  Link2,
+  Check,
+  RotateCcw,
+  Sparkles,
+  Layers,
 } from 'lucide-react';
 
 interface MuridQuizProps {
@@ -26,6 +32,10 @@ export function MuridQuiz({ currentUser, db }: MuridQuizProps) {
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [isFinished, setIsFinished] = useState(false);
   const [finalScore, setFinalScore] = useState<number | null>(null);
+
+  // Local state for interactive matching / tarik garis
+  // Map of leftItem -> rightItem for the active question
+  const [activeLeftSelection, setActiveLeftSelection] = useState<string | null>(null);
 
   const quizQuestions: Soal[] = activeQuiz
     ? (Array.isArray(activeQuiz.soal) && activeQuiz.soal.length > 0
@@ -58,10 +68,59 @@ export function MuridQuiz({ currentUser, db }: MuridQuizProps) {
     setTimeLeft((quiz.durasiMenit || 20) * 60);
     setIsFinished(false);
     setFinalScore(null);
+    setActiveLeftSelection(null);
   };
 
   const handleSelectAnswer = (soalId: string, answer: string) => {
     setAnswers((prev) => ({ ...prev, [soalId]: answer }));
+  };
+
+  // Helper for Tarik Garis (menjodohkan)
+  const getMatchingPairsForSoal = (soalId: string): Record<string, string> => {
+    try {
+      const raw = answers[soalId];
+      if (raw && raw.startsWith('{')) {
+        return JSON.parse(raw);
+      }
+    } catch {
+      // fallback
+    }
+    return {};
+  };
+
+  const handlePairSelection = (soalId: string, leftItem: string, rightItem: string) => {
+    const currentPairs = getMatchingPairsForSoal(soalId);
+    const updated = { ...currentPairs, [leftItem]: rightItem };
+    setAnswers((prev) => ({ ...prev, [soalId]: JSON.stringify(updated) }));
+    setActiveLeftSelection(null);
+  };
+
+  const handleRemovePair = (soalId: string, leftItem: string) => {
+    const currentPairs = getMatchingPairsForSoal(soalId);
+    const updated = { ...currentPairs };
+    delete updated[leftItem];
+    setAnswers((prev) => ({ ...prev, [soalId]: JSON.stringify(updated) }));
+  };
+
+  // Check correctness of answer
+  const isQuestionAnswerCorrect = (s: Soal, ans: string | undefined): boolean => {
+    if (!ans) return false;
+    if (s.tipe === 'Tarik Garis') {
+      try {
+        const parsed = JSON.parse(ans);
+        if (typeof parsed === 'object' && s.matchingPairs && s.matchingPairs.length > 0) {
+          let matches = 0;
+          s.matchingPairs.forEach((pair) => {
+            if (parsed[pair.left] === pair.right) matches++;
+          });
+          return matches >= Math.ceil(s.matchingPairs.length * 0.7);
+        }
+      } catch {
+        // fallback
+      }
+      return ans.toLowerCase().includes((s.kunciJawaban || '').toLowerCase().slice(0, 8));
+    }
+    return ans.trim().toLowerCase() === (s.kunciJawaban || '').trim().toLowerCase();
   };
 
   const handleSubmitQuiz = () => {
@@ -70,9 +129,9 @@ export function MuridQuiz({ currentUser, db }: MuridQuizProps) {
     let maxScore = 0;
 
     quizQuestions.forEach((s) => {
-      maxScore += s.bobot || 25;
-      if (answers[s.id] === s.kunciJawaban) {
-        totalScore += s.bobot || 25;
+      maxScore += s.bobot || 20;
+      if (isQuestionAnswerCorrect(s, answers[s.id])) {
+        totalScore += s.bobot || 20;
       }
     });
 
@@ -93,7 +152,24 @@ export function MuridQuiz({ currentUser, db }: MuridQuizProps) {
         }
         return n;
       });
-      return { ...prev, nilai: updatedNilai };
+
+      const newJawaban: any = {
+        id: `ans-${currentUser.id}-${activeQuiz.id}-${Date.now()}`,
+        quizId: activeQuiz.id,
+        quizJudul: activeQuiz.judul,
+        muridId: currentUser.id,
+        muridNama: currentUser.name,
+        kelasId: currentUser.kelasId || 'cls-xi-1',
+        nilai: calculated100,
+        tanggalSelesai: new Date().toISOString().slice(0, 10),
+        jawabanMurid: answers,
+      };
+
+      return {
+        ...prev,
+        nilai: updatedNilai,
+        jawabanQuiz: [newJawaban, ...prev.jawabanQuiz],
+      };
     });
   };
 
@@ -108,46 +184,62 @@ export function MuridQuiz({ currentUser, db }: MuridQuizProps) {
       {/* View 1: Active Quizzes List */}
       {!activeQuiz && (
         <>
-          <div>
-            <h2 className="text-xl font-black text-slate-800 tracking-tight">Quiz & Asesmen PJOK</h2>
-            <p className="text-xs text-slate-500">
-              Uji pemahaman teori, analisis gerak, dan soal model AKM / HOTS PJOK
-            </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-black text-slate-800 tracking-tight">Quiz & Asesmen PJOK</h2>
+                <span className="px-2.5 py-0.5 bg-purple-100 text-purple-800 font-bold rounded-full text-[10px]">
+                  AKM & HOTS Interaktif
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Pilihan ganda A - E, mencocokkan gambar, tarik garis, dan benar/salah untuk menguji kompetensi motorik & kognitif.
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {(db.quiz || []).map((q) => {
-              const qCount = (q.soal?.length || q.soalList?.length || 0);
+              const qCount = q.soal?.length || q.soalList?.length || 0;
+              const hasTaken = (db.jawabanQuiz || []).find(
+                (j) => j.quizId === q.id && j.muridId === currentUser.id
+              );
+
               return (
                 <div
                   key={q.id}
-                  className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-xs hover:shadow-md transition-all space-y-4 flex flex-col justify-between"
+                  className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs hover:shadow-md transition-all space-y-4 flex flex-col justify-between"
                 >
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <span className="px-2 py-0.5 bg-purple-50 text-purple-800 border border-purple-200 rounded text-[10px] font-bold">
-                        {qCount} Butir Soal
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="px-2.5 py-1 bg-purple-50 text-purple-700 font-extrabold text-[10px] rounded-lg">
+                        {q.materiJudul || 'PJOK Teori & Praktik'}
                       </span>
-                      <span className="text-[11px] text-slate-500 flex items-center gap-1 font-medium">
-                        <Clock className="w-3 h-3 text-slate-400" /> {q.durasiMenit} Menit
+                      {hasTaken && (
+                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded text-[10px]">
+                          Nilai: {hasTaken.nilai}
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="font-extrabold text-slate-800 text-sm leading-snug">{q.judul}</h3>
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-3 text-slate-500 text-[11px]">
+                      <span className="flex items-center gap-1 font-semibold">
+                        <Clock className="w-3.5 h-3.5 text-purple-500" /> {q.durasiMenit || 20} Menit
+                      </span>
+                      <span className="flex items-center gap-1 font-semibold">
+                        <HelpCircle className="w-3.5 h-3.5 text-purple-500" /> {qCount} Butir
                       </span>
                     </div>
 
-                    <h3 className="font-extrabold text-base text-slate-800">{q.judul}</h3>
-                    <p className="text-xs text-slate-500">
-                      Materi uji: Teknik gerak dasar, variasi formasi, aturan resmi, dan analisis biomekanika.
-                    </p>
-                  </div>
-
-                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                    <span className="text-[11px] text-slate-400">
-                      Guru: {(q.guruNama || q.dibuatOleh || 'Guru PJOK').split(',')[0]}
-                    </span>
                     <button
                       onClick={() => handleStartQuiz(q)}
-                      className="px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
+                      className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-bold rounded-xl text-xs transition-all shadow-2xs flex items-center gap-1.5"
                     >
-                      <CheckCircle className="w-4 h-4" /> Mulai Kerjakan Quiz
+                      {hasTaken ? 'Kerjakan Ulang' : 'Mulai Quiz'}
+                      <ChevronRight className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
@@ -157,41 +249,59 @@ export function MuridQuiz({ currentUser, db }: MuridQuizProps) {
         </>
       )}
 
-      {/* View 2: Ongoing Quiz View */}
+      {/* View 2: Active Taking Quiz Screen */}
       {activeQuiz && !isFinished && (
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden animate-in fade-in">
-          {/* Header Bar */}
-          <div className="bg-slate-900 text-white p-5 flex items-center justify-between">
+        <div className="space-y-5 animate-in fade-in">
+          {/* Header Bar with Countdown Timer */}
+          <div className="bg-gradient-to-r from-purple-900 via-indigo-950 to-slate-950 rounded-3xl p-5 text-white shadow-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <span className="text-xs font-bold text-purple-300">UJIAN ONLINE PJOK</span>
-              <h3 className="text-base font-extrabold">{activeQuiz.judul}</h3>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-purple-300">
+                Sedang Dikerjakan • {activeQuiz.materiJudul}
+              </span>
+              <h2 className="text-lg font-black">{activeQuiz.judul}</h2>
             </div>
 
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-slate-400">Sisa Waktu:</span>
-              <span
-                className={`font-mono text-base font-black px-3 py-1 rounded-xl ${
-                  timeLeft < 180 ? 'bg-rose-500 text-white animate-pulse' : 'bg-slate-800 text-emerald-400'
-                }`}
+            <div className="flex items-center gap-3 self-start sm:self-auto">
+              <div className="flex items-center gap-2 px-3.5 py-1.5 bg-white/10 rounded-xl border border-white/20 backdrop-blur-xs">
+                <Clock className="w-4 h-4 text-amber-300 animate-pulse" />
+                <span className="font-mono font-black text-sm tracking-wider">
+                  {formatTimer(timeLeft)}
+                </span>
+              </div>
+
+              <button
+                onClick={handleSubmitQuiz}
+                className="px-4 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs rounded-xl shadow-xs transition-colors"
               >
-                {formatTimer(timeLeft)}
-              </span>
+                Kumpulkan
+              </button>
             </div>
           </div>
 
-          <div className="p-6 space-y-6">
-            {/* Number Navigation Pills */}
+          {/* Question Navigator Bar */}
+          <div className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-xs space-y-2">
+            <div className="flex items-center justify-between text-xs pb-1">
+              <span className="font-bold text-slate-700">Navigasi Nomor Soal:</span>
+              <span className="text-[11px] text-slate-400">
+                Terjawab: {Object.keys(answers).length} dari {quizQuestions.length} butir
+              </span>
+            </div>
             <div className="flex items-center gap-2 overflow-x-auto pb-1">
               {quizQuestions.map((s, idx) => {
-                const isAnswered = Boolean(answers[s.id]);
                 const isCurrent = currentSoalIndex === idx;
+                const isAnswered = !!answers[s.id];
+
                 return (
                   <button
-                    key={s.id}
-                    onClick={() => setCurrentSoalIndex(idx)}
-                    className={`w-9 h-9 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                    key={s.id || idx}
+                    type="button"
+                    onClick={() => {
+                      setCurrentSoalIndex(idx);
+                      setActiveLeftSelection(null);
+                    }}
+                    className={`w-9 h-9 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center justify-center ${
                       isCurrent
-                        ? 'bg-purple-600 text-white ring-2 ring-purple-300'
+                        ? 'bg-purple-600 text-white ring-2 ring-purple-400 shadow-xs scale-105'
                         : isAnswered
                         ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                         : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -202,31 +312,320 @@ export function MuridQuiz({ currentUser, db }: MuridQuizProps) {
                 );
               })}
             </div>
+          </div>
 
-            {/* Current Question */}
-            {(() => {
-              const currentSoal = quizQuestions[currentSoalIndex];
-              if (!currentSoal) {
-                return (
-                  <div className="py-8 text-center text-slate-500 text-sm">
-                    Tidak ada butir soal dalam quiz ini.
-                  </div>
-                );
-              }
-
+          {/* Question Card Display based on Question Type */}
+          {(() => {
+            const currentSoal = quizQuestions[currentSoalIndex];
+            if (!currentSoal) {
               return (
-                <div className="space-y-4">
-                  <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-1">
-                    <span className="text-[11px] font-bold text-purple-700 uppercase tracking-wider">
-                      Soal Nomor {currentSoalIndex + 1} ({currentSoal.bobot || 25} Poin)
-                    </span>
-                    <p className="text-sm font-semibold text-slate-800 leading-relaxed">
-                      {currentSoal.pertanyaan}
-                    </p>
-                  </div>
+                <div className="p-8 bg-white rounded-3xl border text-center text-slate-500 text-sm">
+                  Tidak ada soal dalam paket ini.
+                </div>
+              );
+            }
 
-                  {/* Options */}
-                  <div className="space-y-2.5">
+            const currentType = currentSoal.tipe || 'Pilihan Ganda';
+            const matchedPairs = getMatchingPairsForSoal(currentSoal.id);
+
+            return (
+              <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs space-y-6">
+                {/* Question Info & Badge */}
+                <div className="flex items-center justify-between gap-2 border-b border-slate-100 pb-3">
+                  <div className="flex items-center gap-2">
+                    <span className="px-2.5 py-1 bg-purple-100 text-purple-800 font-extrabold text-[11px] rounded-lg">
+                      Nomor {currentSoalIndex + 1} ({currentSoal.bobot || 20} Poin)
+                    </span>
+                    <span className="px-2.5 py-1 bg-slate-100 text-slate-700 font-bold text-[11px] rounded-lg">
+                      Tipe: {currentType}
+                    </span>
+                  </div>
+                  {currentSoal.kategoriSoal && (
+                    <span className="px-2 py-0.5 bg-amber-50 text-amber-800 font-bold text-[10px] rounded border border-amber-200">
+                      {currentSoal.kategoriSoal}
+                    </span>
+                  )}
+                </div>
+
+                {/* Question Prompt */}
+                <div className="space-y-3">
+                  <p className="text-sm sm:text-base font-bold text-slate-800 leading-relaxed">
+                    {currentSoal.pertanyaan}
+                  </p>
+
+                  {/* If question includes an image */}
+                  {currentSoal.gambarUrl && (
+                    <div className="rounded-2xl overflow-hidden border border-slate-200 max-w-lg mx-auto shadow-xs">
+                      <img
+                        src={currentSoal.gambarUrl}
+                        alt="Ilustrasi Gerak Soal"
+                        className="w-full max-h-72 object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Dynamic Options Rendering based on Tipe Soal */}
+
+                {/* 1. Benar / Salah */}
+                {currentType === 'Benar/Salah' && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                    {['Benar', 'Salah'].map((choice) => {
+                      const isSelected = answers[currentSoal.id] === choice;
+                      const isBenar = choice === 'Benar';
+
+                      return (
+                        <button
+                          key={choice}
+                          type="button"
+                          onClick={() => handleSelectAnswer(currentSoal.id, choice)}
+                          className={`p-5 rounded-2xl border-2 text-left font-bold transition-all flex items-center justify-between ${
+                            isSelected
+                              ? isBenar
+                                ? 'border-emerald-500 bg-emerald-50 text-emerald-950 shadow-md ring-2 ring-emerald-200'
+                                : 'border-rose-500 bg-rose-50 text-rose-950 shadow-md ring-2 ring-rose-200'
+                              : 'border-slate-200 bg-slate-50/50 hover:bg-white text-slate-700'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <span
+                              className={`w-10 h-10 rounded-xl flex items-center justify-center font-black text-base ${
+                                isSelected
+                                  ? isBenar
+                                    ? 'bg-emerald-600 text-white'
+                                    : 'bg-rose-600 text-white'
+                                  : 'bg-slate-200 text-slate-600'
+                              }`}
+                            >
+                              {isBenar ? '✓' : '✗'}
+                            </span>
+                            <div>
+                              <span className="text-base font-extrabold block">{choice}</span>
+                              <span className="text-[11px] text-slate-400 font-normal">
+                                {isBenar
+                                  ? 'Pernyataan di atas benar dan sesuai kaidah'
+                                  : 'Pernyataan di atas keliru / tidak sesuai'}
+                              </span>
+                            </div>
+                          </div>
+                          {isSelected && <Check className="w-5 h-5 text-emerald-600" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* 2. Tarik Garis (Menjodohkan) */}
+                {currentType === 'Tarik Garis' && (
+                  <div className="space-y-4 pt-2">
+                    <div className="p-3 bg-purple-50 rounded-2xl border border-purple-100 text-xs text-purple-900 space-y-1">
+                      <p className="font-bold flex items-center gap-1.5">
+                        <Link2 className="w-4 h-4 text-purple-700" />
+                        Cara Menjawab Tarik Garis:
+                      </p>
+                      <p className="text-[11px] text-purple-700 leading-relaxed">
+                        1. Klik salah satu item di <strong>Kolom Kiri</strong> (akan menyala ungu).
+                        <br />
+                        2. Klik item pasangannya di <strong>Kolom Kanan</strong> untuk menghubungkannya.
+                      </p>
+                    </div>
+
+                    {/* Columns */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Left Column */}
+                      <div className="space-y-2">
+                        <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">
+                          Kolom A (Item / Posisi / Istilah)
+                        </span>
+                        {(currentSoal.matchingPairs || []).map((pair, pIdx) => {
+                          const isPaired = !!matchedPairs[pair.left];
+                          const isLeftActive = activeLeftSelection === pair.left;
+
+                          return (
+                            <button
+                              key={pIdx}
+                              type="button"
+                              onClick={() =>
+                                setActiveLeftSelection(isLeftActive ? null : pair.left)
+                              }
+                              className={`w-full p-3.5 rounded-2xl border text-left text-xs font-bold transition-all flex items-center justify-between ${
+                                isLeftActive
+                                  ? 'bg-purple-600 text-white border-purple-600 shadow-md ring-2 ring-purple-300'
+                                  : isPaired
+                                  ? 'bg-emerald-50 border-emerald-300 text-emerald-900'
+                                  : 'bg-white border-slate-200 hover:bg-slate-50 text-slate-800'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <span
+                                  className={`w-6 h-6 rounded-lg text-[11px] font-black flex items-center justify-center ${
+                                    isLeftActive
+                                      ? 'bg-white text-purple-800'
+                                      : isPaired
+                                      ? 'bg-emerald-600 text-white'
+                                      : 'bg-slate-100 text-slate-600'
+                                  }`}
+                                >
+                                  {pIdx + 1}
+                                </span>
+                                <span>{pair.left}</span>
+                              </div>
+
+                              {isPaired && (
+                                <span className="text-[10px] bg-emerald-200/60 px-2 py-0.5 rounded text-emerald-800 font-bold">
+                                  Terhubung
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* Right Column */}
+                      <div className="space-y-2">
+                        <span className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider block">
+                          Kolom B (Definisi / Tugas / Deskripsi)
+                        </span>
+                        {(currentSoal.matchingPairs || []).map((pair, pIdx) => {
+                          // Check which left item is connected to this right item
+                          const connectedLeft = Object.keys(matchedPairs).find(
+                            (k) => matchedPairs[k] === pair.right
+                          );
+
+                          return (
+                            <button
+                              key={pIdx}
+                              type="button"
+                              onClick={() => {
+                                if (activeLeftSelection) {
+                                  handlePairSelection(
+                                    currentSoal.id,
+                                    activeLeftSelection,
+                                    pair.right
+                                  );
+                                }
+                              }}
+                              className={`w-full p-3.5 rounded-2xl border text-left text-xs transition-all flex items-center justify-between ${
+                                connectedLeft
+                                  ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950 font-medium'
+                                  : activeLeftSelection
+                                  ? 'bg-purple-50/40 border-purple-300 hover:bg-purple-50 text-slate-800 font-medium cursor-pointer ring-1 ring-purple-200'
+                                  : 'bg-white border-slate-200 text-slate-700'
+                              }`}
+                            >
+                              <div className="min-w-0 pr-2">
+                                <span className="block leading-relaxed">{pair.right}</span>
+                                {connectedLeft && (
+                                  <span className="inline-block mt-1 text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">
+                                    ➜ Pasangan: {connectedLeft}
+                                  </span>
+                                )}
+                              </div>
+
+                              {connectedLeft && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleRemovePair(currentSoal.id, connectedLeft);
+                                  }}
+                                  className="text-[10px] text-rose-500 hover:text-rose-700 font-bold ml-2 shrink-0"
+                                >
+                                  Lepas
+                                </button>
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* 3. Mencocokkan Gambar */}
+                {currentType === 'Mencocokkan Gambar' && (
+                  <div className="space-y-4 pt-2">
+                    {/* If question has matchingPairs with images */}
+                    {currentSoal.matchingPairs && currentSoal.matchingPairs.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {currentSoal.matchingPairs.map((item, idx) => {
+                          const isSelected = answers[currentSoal.id] === item.left;
+                          return (
+                            <div
+                              key={idx}
+                              onClick={() => handleSelectAnswer(currentSoal.id, item.left)}
+                              className={`p-3 rounded-2xl border text-xs cursor-pointer transition-all space-y-2.5 ${
+                                isSelected
+                                  ? 'border-purple-600 bg-purple-50/60 ring-2 ring-purple-300 shadow-md'
+                                  : 'border-slate-200 bg-white hover:bg-slate-50'
+                              }`}
+                            >
+                              {item.imageUrl && (
+                                <img
+                                  src={item.imageUrl}
+                                  alt={item.left}
+                                  className="w-full h-32 object-cover rounded-xl border border-slate-100"
+                                />
+                              )}
+                              <div className="flex items-center justify-between">
+                                <span className="font-extrabold text-slate-800">{item.left}</span>
+                                <div
+                                  className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                                    isSelected
+                                      ? 'bg-purple-600 text-white'
+                                      : 'border border-slate-300 text-transparent'
+                                  }`}
+                                >
+                                  ✓
+                                </div>
+                              </div>
+                              <p className="text-[11px] text-slate-500 line-clamp-2">{item.right}</p>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      /* If regular image with choices */
+                      <div className="space-y-2.5">
+                        {(currentSoal.pilihan || []).map((opsi, optIdx) => {
+                          const isSelected = answers[currentSoal.id] === opsi;
+                          const optLetter = String.fromCharCode(65 + optIdx);
+
+                          return (
+                            <button
+                              key={optIdx}
+                              type="button"
+                              onClick={() => handleSelectAnswer(currentSoal.id, opsi)}
+                              className={`w-full text-left p-3.5 rounded-2xl border text-xs font-medium transition-all flex items-center gap-3 ${
+                                isSelected
+                                  ? 'bg-purple-50/80 border-purple-500 text-purple-950 ring-2 ring-purple-200'
+                                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                              }`}
+                            >
+                              <span
+                                className={`w-7 h-7 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                                  isSelected
+                                    ? 'bg-purple-600 text-white shadow-xs'
+                                    : 'bg-slate-100 text-slate-600'
+                                }`}
+                              >
+                                {optLetter}
+                              </span>
+                              <span className="leading-snug">{opsi}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 4. Pilihan Ganda (A sampai E) */}
+                {currentType === 'Pilihan Ganda' && (
+                  <div className="space-y-2.5 pt-2">
+                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                      Pilihan Jawaban (A s.d E):
+                    </span>
                     {(currentSoal.pilihan || []).map((opsi, optIdx) => {
                       const isSelected = answers[currentSoal.id] === opsi;
                       const optLabel = String.fromCharCode(65 + optIdx); // A, B, C, D, E
@@ -238,68 +637,75 @@ export function MuridQuiz({ currentUser, db }: MuridQuizProps) {
                           onClick={() => handleSelectAnswer(currentSoal.id, opsi)}
                           className={`w-full text-left p-3.5 rounded-2xl border text-xs font-medium transition-all flex items-center gap-3 ${
                             isSelected
-                              ? 'bg-purple-50/80 border-purple-500 text-purple-950 ring-2 ring-purple-200'
+                              ? 'bg-purple-50/80 border-purple-500 text-purple-950 ring-2 ring-purple-200 shadow-2xs'
                               : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                           }`}
                         >
                           <span
-                            className={`w-7 h-7 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 ${
+                            className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
                               isSelected
-                                ? 'bg-purple-600 text-white shadow-xs'
+                                ? 'bg-purple-600 text-white shadow-xs scale-105'
                                 : 'bg-slate-100 text-slate-600'
                             }`}
                           >
                             {optLabel}
                           </span>
-                          <span className="leading-snug">{opsi}</span>
+                          <span className="leading-relaxed font-semibold">{opsi}</span>
                         </button>
                       );
                     })}
-
-                    {(!currentSoal.pilihan || currentSoal.pilihan.length === 0) && (
-                      <div className="space-y-2">
-                        <label className="text-xs font-bold text-slate-700">Tulis Jawaban Singkat:</label>
-                        <input
-                          type="text"
-                          value={answers[currentSoal.id] || ''}
-                          onChange={(e) => handleSelectAnswer(currentSoal.id, e.target.value)}
-                          placeholder="Ketik jawaban Anda..."
-                          className="w-full px-4 py-2.5 text-xs border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-400 focus:outline-none"
-                        />
-                      </div>
-                    )}
                   </div>
+                )}
+
+                {/* 5. Isian Singkat */}
+                {currentType === 'Isian' && (
+                  <div className="space-y-2 pt-2">
+                    <label className="text-xs font-bold text-slate-700">Tuliskan Jawaban Singkat Anda:</label>
+                    <input
+                      type="text"
+                      value={answers[currentSoal.id] || ''}
+                      onChange={(e) => handleSelectAnswer(currentSoal.id, e.target.value)}
+                      placeholder="Ketik jawaban Anda..."
+                      className="w-full px-4 py-3 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-purple-500 focus:outline-hidden"
+                    />
+                  </div>
+                )}
+
+                {/* Navigation Buttons */}
+                <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+                  <button
+                    disabled={currentSoalIndex === 0}
+                    onClick={() => {
+                      setCurrentSoalIndex((prev) => prev - 1);
+                      setActiveLeftSelection(null);
+                    }}
+                    className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-50 disabled:opacity-30 transition-colors flex items-center gap-1"
+                  >
+                    <ChevronLeft className="w-4 h-4" /> Soal Sebelumnya
+                  </button>
+
+                  {currentSoalIndex < quizQuestions.length - 1 ? (
+                    <button
+                      onClick={() => {
+                        setCurrentSoalIndex((prev) => prev + 1);
+                        setActiveLeftSelection(null);
+                      }}
+                      className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1 shadow-xs"
+                    >
+                      Soal Berikutnya <ChevronRight className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={handleSubmitQuiz}
+                      className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors shadow-xs"
+                    >
+                      Selesai & Kumpulkan
+                    </button>
+                  )}
                 </div>
-              );
-            })()}
-
-            {/* Controls */}
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
-              <button
-                disabled={currentSoalIndex === 0}
-                onClick={() => setCurrentSoalIndex((prev) => prev - 1)}
-                className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl text-xs font-semibold hover:bg-slate-50 disabled:opacity-30 transition-colors flex items-center gap-1"
-              >
-                <ChevronLeft className="w-4 h-4" /> Soal Sebelumnya
-              </button>
-
-              {currentSoalIndex < quizQuestions.length - 1 ? (
-                <button
-                  onClick={() => setCurrentSoalIndex((prev) => prev + 1)}
-                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1 shadow-xs"
-                >
-                  Soal Berikutnya <ChevronRight className="w-4 h-4" />
-                </button>
-              ) : (
-                <button
-                  onClick={handleSubmitQuiz}
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors shadow-xs"
-                >
-                  Selesai & Kumpulkan Jawaban
-                </button>
-              )}
-            </div>
-          </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 
@@ -328,11 +734,11 @@ export function MuridQuiz({ currentUser, db }: MuridQuizProps) {
 
             {quizQuestions.map((s, idx) => {
               const myAnswer = answers[s.id];
-              const isCorrect = myAnswer === s.kunciJawaban;
+              const isCorrect = isQuestionAnswerCorrect(s, myAnswer);
 
               return (
                 <div
-                  key={s.id}
+                  key={s.id || idx}
                   className={`p-4 rounded-2xl border text-xs space-y-2.5 ${
                     isCorrect ? 'bg-emerald-50/50 border-emerald-200' : 'bg-rose-50/50 border-rose-200'
                   }`}
@@ -343,7 +749,7 @@ export function MuridQuiz({ currentUser, db }: MuridQuizProps) {
                     </span>
                     {isCorrect ? (
                       <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded flex items-center gap-1 text-[10px] shrink-0">
-                        <CheckCircle2 className="w-3 h-3" /> Benar (+{s.bobot || 25})
+                        <CheckCircle2 className="w-3 h-3" /> Benar (+{s.bobot || 20})
                       </span>
                     ) : (
                       <span className="px-2 py-0.5 bg-rose-100 text-rose-800 font-bold rounded flex items-center gap-1 text-[10px] shrink-0">
@@ -354,10 +760,8 @@ export function MuridQuiz({ currentUser, db }: MuridQuizProps) {
 
                   <div className="p-3 bg-white/80 rounded-xl space-y-1 text-[11px] border border-slate-100">
                     <div>
-                      <span className="text-slate-500">Jawaban Anda: </span>
-                      <span className={`font-bold ${isCorrect ? 'text-emerald-700' : 'text-rose-700'}`}>
-                        {myAnswer || '(Kosong / Tidak dijawab)'}
-                      </span>
+                      <span className="text-slate-500">Tipe Soal: </span>
+                      <span className="font-bold text-slate-800">{s.tipe || 'Pilihan Ganda'}</span>
                     </div>
                     <div>
                       <span className="text-slate-500">Kunci Jawaban Resmi: </span>

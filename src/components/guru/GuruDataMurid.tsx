@@ -9,9 +9,11 @@ import {
   X,
   Activity,
   CheckCircle2,
+  Upload,
 } from 'lucide-react';
 import { User as UserType } from '../../types';
-import { LMSDatabase } from '../../services/dataStorage';
+import { dataStorage, LMSDatabase } from '../../services/dataStorage';
+import { UploadDataModal } from '../shared/UploadDataModal';
 
 interface GuruDataMuridProps {
   db: LMSDatabase;
@@ -22,6 +24,15 @@ export const GuruDataMurid: React.FC<GuruDataMuridProps> = ({ db, onNavigatePrak
   const [selectedKelasId, setSelectedKelasId] = useState<string>('cls-xi-1');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeMuridDetail, setActiveMuridDetail] = useState<UserType | null>(null);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false);
+
+  const handleImportMurid = (importedUsers: UserType[]) => {
+    dataStorage.updateDatabase((prev) => ({
+      ...prev,
+      users: [...prev.users, ...importedUsers],
+    }));
+    alert(`Berhasil menambahkan ${importedUsers.length} data murid baru ke database!`);
+  };
 
   const muridInKelas = db.users.filter((u) => u.role === 'MURID' && u.kelasId === selectedKelasId);
 
@@ -97,15 +108,25 @@ export const GuruDataMurid: React.FC<GuruDataMuridProps> = ({ db, onNavigatePrak
           </div>
         </div>
 
-        <div className="relative w-full sm:w-64">
-          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            placeholder="Cari siswa atau NIS..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
-          />
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-60">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Cari siswa atau NIS..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-emerald-500"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsUploadModalOpen(true)}
+            className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0 shadow-2xs"
+          >
+            <Upload className="w-3.5 h-3.5" />
+            <span>Upload Murid</span>
+          </button>
         </div>
       </div>
 
@@ -264,6 +285,13 @@ export const GuruDataMurid: React.FC<GuruDataMuridProps> = ({ db, onNavigatePrak
           </div>
         </div>
       )}
+      {/* Upload Data Murid Modal */}
+      <UploadDataModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        type="murid"
+        onImport={handleImportMurid}
+      />
     </div>
   );
 };

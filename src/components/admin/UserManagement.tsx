@@ -42,6 +42,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ db, initialTab =
   const [selectedKelas, setSelectedKelas] = useState<string>('all');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [isPullingSheets, setIsPullingSheets] = useState(false);
   const [toastMsg, setToastMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -85,6 +86,22 @@ export const UserManagement: React.FC<UserManagementProps> = ({ db, initialTab =
     };
     reader.readAsText(file);
     e.target.value = '';
+  };
+
+  const handleQuickPullFromSheets = async () => {
+    setIsPullingSheets(true);
+    try {
+      const res = await dataStorage.pullFromLinkedSpreadsheet();
+      if (res.success) {
+        showToast(res.message, 'success');
+      } else {
+        showToast(`Gagal: ${res.message} (Klik tombol Spreadsheet untuk diagnosa)`, 'error');
+      }
+    } catch (err: any) {
+      showToast(`Gagal: ${err.message || 'Terjadi kesalahan'}`, 'error');
+    } finally {
+      setIsPullingSheets(false);
+    }
   };
 
   // Form state for Add/Edit
@@ -243,6 +260,17 @@ export const UserManagement: React.FC<UserManagementProps> = ({ db, initialTab =
           >
             <Upload className="w-3.5 h-3.5 text-sky-600" />
             Impor CSV
+          </button>
+
+          <button
+            type="button"
+            onClick={handleQuickPullFromSheets}
+            disabled={isPullingSheets}
+            title="Tarik pembaruan data pengguna langsung dari Google Spreadsheet"
+            className="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-800 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-indigo-600 ${isPullingSheets ? 'animate-spin' : ''}`} />
+            {isPullingSheets ? 'Menarik...' : 'Tarik Data'}
           </button>
 
           <button

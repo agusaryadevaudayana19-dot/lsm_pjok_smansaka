@@ -390,7 +390,7 @@ export const exportUsersToCSV = (users: User[]): string => {
 export const syncViaAppsScriptWebhook = async (
   webhookUrl: string,
   payload: { action: string; table?: string; data: any } | Record<string, any[]>
-): Promise<{ success: boolean; message: string }> => {
+): Promise<{ success: boolean; message: string; statusCode?: number; details?: string }> => {
   if (!webhookUrl || !webhookUrl.startsWith('http')) {
     throw new Error('URL Webhook / Google Apps Script tidak valid.');
   }
@@ -413,47 +413,256 @@ export const syncViaAppsScriptWebhook = async (
       body: JSON.stringify(normalizedPayload),
     });
 
+    const statusCode = res.status;
+    const text = await res.text();
+
     if (!res.ok) {
-      const err = await res.text();
-      throw new Error(`Gagal mengirim ke Webhook: ${res.statusText} (${err})`);
+      throw new Error(`Server Google Apps Script merespons kode HTTP ${statusCode}: ${res.statusText} (${text.slice(0, 200)})`);
     }
 
-    const json = await res.json().catch(() => ({ status: 'success' }));
+    let json: any = {};
+    try {
+      json = JSON.parse(text);
+    } catch {
+      json = { status: 'success', message: text.slice(0, 150) };
+    }
+
     return {
       success: true,
+      statusCode,
       message: json.message || 'Data berhasil dikirim ke Google Spreadsheet!',
+      details: text.slice(0, 300),
     };
   } catch (err: any) {
-    // If CORS blocked standard read, note that Google Apps Script Web App redirects 302
+    const isCors = err?.name === 'TypeError' || String(err).includes('fetch');
+    if (isCors) {
+      // Note: Google Apps Script Web App redirects with 302, which browser fetch sometimes flags as opaque or cross-origin
+      return {
+        success: true,
+        statusCode: 200,
+        message: 'Perintah pembaruan spreadsheet telah dikirimkan ke Google Apps Script.',
+        details: 'Permintaan dikirim (background 302 redirect). Cek Google Spreadsheet Anda untuk memastikan data terupdate.',
+      };
+    }
     return {
-      success: true,
-      message: 'Perintah pembaruan spreadsheet telah dikirimkan ke Google Apps Script.',
+      success: false,
+      statusCode: 0,
+      message: err?.message || 'Gagal mengirim data ke Webhook Google Apps Script.',
+      details: String(err),
     };
   }
 };
 
 /**
- * Fetch data from Google Apps Script Web App
+ * Fetch data directly from Google Sheets via Google Visualization API (GViz) CSV
+ * Works if the Google Sheet has "Anyone with the link can view" permission without needing Apps Script!
+ */
+export const fetchSheetViaGViz = async (
+  spreadsheetIdOrUrl: string,
+  sheetName: string = 'USERS'
+): Promise<{
+  success: boolean;
+  data: User[];
+  csvText: string;
+  statusCode: number;
+  message: string;
+}> => {
+  const spreadsheetId = extractSpreadsheetId(spreadsheetIdOrUrl);
+  if (!spreadsheetId) {
+    return {
+      success: false,
+      data: [],
+      csvText: '',
+      statusCode: 400,
+      message: 'ID Google Spreadsheet tidak valid atau tidak ditemukan dalam URL.',
+    };
+  }
+
+  const gvizUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodeURIComponent(sheetName)}`;
+
+  try {
+    const res = await fetch(gvizUrl, { method: 'GET' });
+    const statusCode = res.status;
+    const text = await res.text();
+
+    if (!res.ok) {
+      return {
+        success: false,
+        data: [],
+        csvText: text.slice(0, 300),
+        statusCode,
+        message: `HTTP ${statusCode}: Gagal membaca data GViz. Pastikan Spreadsheet disetel "Siapa saja dengan link dapat melihat".`,
+      };
+    }
+
+    // If Google returned HTML instead of CSV (usually login or private error)
+    if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+      return {
+        success: false,
+        data: [],
+        csvText: text.slice(0, 300),
+        statusCode: 403,
+        message: 'Google Spreadsheet bersifat Privat. Ubah akses di menu Bagikan (Share) menjadi "Siapa saja yang memiliki tautan (Anyone with link: Viewer)".',
+      };
+    }
+
+    const users = parseCSVToUsers(text);
+    return {
+      success: true,
+      data: users,
+      csvText: text,
+      statusCode,
+      message: `Berhasil mengambil ${users.length} pengguna via GViz CSV langsung!`,
+    };
+  } catch (err: any) {
+    return {
+      success: false,
+      data: [],
+      csvText: '',
+      statusCode: 0,
+      message: `Koneksi ke GViz gagal: ${err?.message || 'Periksa koneksi internet / izin Spreadsheet'}.`,
+    };
+  }
+};
+
+/**
+ * Fetch data from Google Apps Script Web App with comprehensive diagnostics
  */
 export const fetchViaAppsScriptWebhook = async (
   webhookUrl: string,
   sheetName: string = 'USERS'
-): Promise<any> => {
+): Promise<{
+  success: boolean;
+  data?: any;
+  status?: string;
+  message?: string;
+  statusCode: number;
+  rawText?: string;
+  isHtml?: boolean;
+  corsBlocked?: boolean;
+  authError?: boolean;
+}> => {
   if (!webhookUrl || !webhookUrl.startsWith('http')) {
-    throw new Error('URL Webhook / Google Apps Script tidak valid.');
+    return {
+      success: false,
+      statusCode: 400,
+      message: 'URL Webhook / Google Apps Script tidak valid atau kosong.',
+    };
   }
 
-  const url = new URL(webhookUrl);
-  url.searchParams.set('action', 'getData');
-  url.searchParams.set('sheet', sheetName);
-
-  const res = await fetch(url.toString());
-  if (!res.ok) {
-    throw new Error(`Gagal mengambil data dari Google Apps Script: ${res.statusText}`);
+  // Detect if user mistakenly pasted a Google Spreadsheet URL into the Webhook field
+  if (webhookUrl.includes('docs.google.com/spreadsheets')) {
+    const gvizRes = await fetchSheetViaGViz(webhookUrl, sheetName);
+    return {
+      success: gvizRes.success,
+      data: gvizRes.data,
+      status: gvizRes.success ? 'success' : 'error',
+      message: gvizRes.message,
+      statusCode: gvizRes.statusCode,
+      rawText: gvizRes.csvText.slice(0, 300),
+    };
   }
 
-  const data = await res.json();
-  return data;
+  let url: URL;
+  try {
+    url = new URL(webhookUrl);
+    url.searchParams.set('action', 'getData');
+    url.searchParams.set('sheet', sheetName);
+  } catch {
+    return {
+      success: false,
+      statusCode: 400,
+      message: 'Format URL Webhook tidak dapat di-parse sebagai URL valid.',
+    };
+  }
+
+  try {
+    const res = await fetch(url.toString(), {
+      method: 'GET',
+      redirect: 'follow',
+    });
+
+    const statusCode = res.status;
+    const text = await res.text();
+    const isHtml = text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html');
+
+    if (isHtml) {
+      // Check if it's Google Accounts login page
+      const isGoogleLogin = text.includes('accounts.google.com') || text.includes('Sign in') || text.includes('Google Accounts');
+      return {
+        success: false,
+        statusCode: 401,
+        isHtml: true,
+        authError: isGoogleLogin,
+        rawText: text.slice(0, 400),
+        message: isGoogleLogin
+          ? 'Google Apps Script meminta login (Autentikasi diperlukan). Pastikan saat Deploy disetel "Who has access: Anyone (Siapa saja)".'
+          : 'Webhook mengembalikan halaman HTML alih-alih data JSON. Periksa URL deployment Web App.',
+      };
+    }
+
+    if (!res.ok) {
+      return {
+        success: false,
+        statusCode,
+        rawText: text.slice(0, 400),
+        message: `HTTP ${statusCode}: Google Apps Script mengembalikan status error (${res.statusText}).`,
+      };
+    }
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(text);
+    } catch {
+      // Not JSON, might be CSV text or plain string
+      return {
+        success: false,
+        statusCode,
+        rawText: text.slice(0, 400),
+        message: 'Respons dari Google Apps Script bukan format JSON yang valid.',
+      };
+    }
+
+    // Normalizing parsed response structure
+    let extractedData: any[] = [];
+    if (Array.isArray(parsed)) {
+      extractedData = parsed;
+    } else if (parsed && typeof parsed === 'object') {
+      if (Array.isArray(parsed.data)) {
+        extractedData = parsed.data;
+      } else if (Array.isArray(parsed.USERS)) {
+        extractedData = parsed.USERS;
+      } else if (Array.isArray(parsed.users)) {
+        extractedData = parsed.users;
+      } else if (Array.isArray(parsed.rows)) {
+        extractedData = parsed.rows;
+      } else if (parsed.data && typeof parsed.data === 'object' && Array.isArray(parsed.data.USERS)) {
+        extractedData = parsed.data.USERS;
+      }
+    }
+
+    const isSuccess = parsed.status === 'success' || parsed.success === true || extractedData.length > 0;
+
+    return {
+      success: isSuccess,
+      data: extractedData,
+      status: parsed.status || (isSuccess ? 'success' : 'error'),
+      message: parsed.message || (isSuccess ? `Berhasil menerima ${extractedData.length} baris data.` : 'Tidak ada data yang ditemukan.'),
+      statusCode,
+      rawText: text.slice(0, 400),
+    };
+  } catch (err: any) {
+    const isCors = err?.name === 'TypeError' || String(err).includes('fetch');
+    return {
+      success: false,
+      statusCode: 0,
+      corsBlocked: isCors,
+      message: isCors
+        ? 'Gagal menghubungi Webhook (Terhalang CORS / Browser Security). Penyebab umum: Google Apps Script Web App belum disetel "Who has access: Anyone (Siapa saja)", atau URL bukan Web App /exec yang valid.'
+        : `Kesalahan jaringan: ${err?.message || 'Tidak dapat terhubung ke server Google.'}`,
+      rawText: String(err),
+    };
+  }
 };
 
 /**
@@ -520,8 +729,14 @@ function doGet(e) {
     rows.push(obj);
   }
   
-  return ContentService.createTextOutput(JSON.stringify({ status: 'success', data: rows }))
-    .setMimeType(ContentService.MimeType.JSON);
+  return ContentService.createTextOutput(JSON.stringify({
+    status: 'success',
+    success: true,
+    sheet: sheetName,
+    count: rows.length,
+    data: rows,
+    USERS: rows
+  })).setMimeType(ContentService.MimeType.JSON);
 }
 
 function doPost(e) {
@@ -589,10 +804,10 @@ function doPost(e) {
       }
     }
     
-    return ContentService.createTextOutput(JSON.stringify({ status: 'success', message: 'Tersinkronisasi!' }))
+    return ContentService.createTextOutput(JSON.stringify({ status: 'success', success: true, message: 'Tersinkronisasi!' }))
       .setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ status: 'error', message: err.toString() }))
+    return ContentService.createTextOutput(JSON.stringify({ status: 'error', success: false, message: err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 }`;

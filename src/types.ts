@@ -315,3 +315,31 @@ export interface PengaturanSekolah {
 }
 
 export type SettingsApp = PengaturanSekolah;
+
+export interface SpreadsheetSyncLog {
+  id: string;
+  timestamp: string;
+  action: 'PULL' | 'PUSH' | 'TEST_DIAGNOSTIC' | 'CSV_IMPORT';
+  method: 'WEBHOOK_GET' | 'WEBHOOK_POST' | 'GVIZ_CSV' | 'DIRECT_EXPORT' | 'LOCAL';
+  url: string;
+  httpStatus?: number | null;
+  durationMs: number;
+  success: boolean;
+  recordsCount?: number;
+  message: string;
+  details?: string;
+  corsDetected?: boolean;
+  authErrorDetected?: boolean;
+  recommendation?: string;
+  rawResponseSnippet?: string;
+}
+
+export interface DiagnosticTestResult {
+  step: string;
+  name: string;
+  status: 'passed' | 'failed' | 'warning' | 'pending';
+  message: string;
+  httpStatus?: number | null;
+  details?: string;
+  fixAction?: string;
+}

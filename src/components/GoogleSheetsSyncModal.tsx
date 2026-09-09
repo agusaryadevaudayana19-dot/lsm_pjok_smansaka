@@ -20,6 +20,7 @@ import {
   Link,
   Sparkles,
   FileText,
+  Activity,
 } from 'lucide-react';
 import { getGoogleAccessToken, signInWithGoogle, googleSignOut } from '../services/firebaseAuth';
 import {
@@ -33,6 +34,7 @@ import {
 } from '../services/sheetsService';
 import { dataStorage } from '../services/dataStorage';
 import { PengaturanSekolah } from '../types';
+import { SpreadsheetDiagnosticPanel } from './shared/SpreadsheetDiagnosticPanel';
 
 interface GoogleSheetsSyncModalProps {
   isOpen: boolean;
@@ -42,7 +44,7 @@ interface GoogleSheetsSyncModalProps {
   onDbUpdate?: (newDb: any) => void;
 }
 
-type ActiveTab = 'webhook' | 'csv' | 'script' | 'oauth';
+type ActiveTab = 'webhook' | 'diagnostic' | 'csv' | 'script' | 'oauth';
 
 export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
   isOpen,
@@ -360,6 +362,17 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
             Sinkronisasi 2 Arah (Webhook)
           </button>
           <button
+            onClick={() => setActiveTab('diagnostic')}
+            className={`py-3 px-3 border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-colors ${
+              activeTab === 'diagnostic'
+                ? 'border-emerald-600 text-emerald-700 bg-white shadow-xs'
+                : 'border-transparent text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Activity className="w-4 h-4 text-rose-500" />
+            Diagnosa & Log Error
+          </button>
+          <button
             onClick={() => setActiveTab('csv')}
             className={`py-3 px-3 border-b-2 flex items-center gap-1.5 whitespace-nowrap transition-colors ${
               activeTab === 'csv'
@@ -515,18 +528,62 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
                 </button>
               </div>
 
+              {/* Diagnostic Quick Bar */}
+              <div className="p-3.5 bg-slate-900 text-slate-100 rounded-xl border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-500/30">
+                    <Activity className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-white block">
+                      Gagal menarik data atau muncul CORS / 302 Redirect?
+                    </span>
+                    <span className="text-slate-400 text-[11px]">
+                      Uji status HTTP, izin akses Google, dan verifikasi baris tabel pengguna secara otomatis.
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('diagnostic')}
+                  className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold text-xs flex items-center justify-center gap-1.5 transition shrink-0"
+                >
+                  <Activity className="w-3.5 h-3.5" />
+                  Buka Diagnosa & Tes Koneksi
+                </button>
+              </div>
+
               {spreadsheetUrl && (
-                <div className="pt-1 flex items-center justify-end">
+                <div className="pt-1 flex items-center justify-between flex-wrap gap-2 text-xs">
+                  <span className="text-slate-500 text-[11px]">
+                    Tips: Pastikan lembar kerja di Spreadsheet dinamai <strong>USERS</strong>.
+                  </span>
                   <a
                     href={spreadsheetUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="text-xs text-sky-700 font-semibold hover:underline flex items-center gap-1.5"
+                    className="text-sky-700 font-semibold hover:underline flex items-center gap-1.5"
                   >
                     Buka Google Spreadsheet Langsung <ExternalLink className="w-3.5 h-3.5" />
                   </a>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* TAB: DIAGNOSA & LOG ERROR */}
+          {activeTab === 'diagnostic' && (
+            <div className="space-y-4">
+              <SpreadsheetDiagnosticPanel
+                webhookUrl={webhookUrl}
+                spreadsheetUrl={spreadsheetUrl}
+                onApplySync={(count) => {
+                  setStatusMessage({
+                    type: 'success',
+                    text: `Berhasil menarik ${count} data dari Google Spreadsheet!`,
+                  });
+                }}
+              />
             </div>
           )}
 

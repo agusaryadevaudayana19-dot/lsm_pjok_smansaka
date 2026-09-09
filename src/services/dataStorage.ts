@@ -14,6 +14,7 @@ import {
   NotifikasiItem,
   RekapNilaiMurid,
   PengaturanSekolah,
+  SpreadsheetSyncLog,
 } from '../types';
 import {
   collection,
@@ -30,9 +31,12 @@ import { DEFAULT_USERS, DEFAULT_NILAI } from '../data/defaultUsers';
 import {
   syncViaAppsScriptWebhook,
   fetchViaAppsScriptWebhook,
+  fetchSheetViaGViz,
   exportUsersToCSV,
   parseCSVToUsers,
+  extractSpreadsheetId,
 } from './sheetsService';
+import { runSpreadsheetDiagnostics, DiagnosticReport } from './sheetsDiagnosticService';
 
 export interface LMSDatabase {
   users: User[];
@@ -784,10 +788,59 @@ class DataStorageService {
   private isApplyingRemoteUpdate = false;
   private isSyncingToFirestore = false;
   private unsubscribeFirestore: Unsubscribe | null = null;
+  private syncLogs: SpreadsheetSyncLog[] = [];
+  private logListeners: Array<(logs: SpreadsheetSyncLog[]) => void> = [];
 
   constructor() {
     this.db = this.loadFromLocalStorage();
     this.initFirestoreSync();
+    this.loadSyncLogsFromStorage();
+  }
+
+  private loadSyncLogsFromStorage() {
+    try {
+      const stored = localStorage.getItem('lms_pjok_sheet_logs');
+      if (stored) {
+        this.syncLogs = JSON.parse(stored);
+      }
+    } catch {
+      this.syncLogs = [];
+    }
+  }
+
+  public getSyncLogs(): SpreadsheetSyncLog[] {
+    return [...this.syncLogs];
+  }
+
+  public addSyncLog(log: SpreadsheetSyncLog) {
+    this.syncLogs = [log, ...this.syncLogs].slice(0, 50); // Keep last 50
+    try {
+      localStorage.setItem('lms_pjok_sheet_logs', JSON.stringify(this.syncLogs));
+    } catch {}
+    this.logListeners.forEach((fn) => fn([...this.syncLogs]));
+  }
+
+  public clearSyncLogs() {
+    this.syncLogs = [];
+    try {
+      localStorage.removeItem('lms_pjok_sheet_logs');
+    } catch {}
+    this.logListeners.forEach((fn) => fn([]));
+  }
+
+  public subscribeSyncLogs(listener: (logs: SpreadsheetSyncLog[]) => void): () => void {
+    this.logListeners.push(listener);
+    listener([...this.syncLogs]);
+    return () => {
+      this.logListeners = this.logListeners.filter((l) => l !== listener);
+    };
+  }
+
+  public async testSpreadsheetDiagnostics(url?: string): Promise<DiagnosticReport> {
+    const targetUrl = url || this.db.settings?.spreadsheetWebhookUrl || this.db.settings?.spreadsheetUrl || '';
+    const report = await runSpreadsheetDiagnostics(targetUrl, this.db.settings?.spreadsheetUrl);
+    report.logs.forEach((l) => this.addSyncLog(l));
+    return report;
   }
 
   /**
@@ -1268,18 +1321,35 @@ class DataStorageService {
     };
   }
 
-  public async syncToLinkedSpreadsheet(webhookUrl?: string): Promise<{ success: boolean; message: string }> {
+  public async syncToLinkedSpreadsheet(webhookUrl?: string): Promise<{ success: boolean; message: string; log?: SpreadsheetSyncLog }> {
+    const startTime = Date.now();
     const url = webhookUrl || this.db.settings?.spreadsheetWebhookUrl;
     if (!url) {
+      const errLog: SpreadsheetSyncLog = {
+        id: `log-${Date.now()}`,
+        timestamp: new Date().toLocaleTimeString('id-ID'),
+        action: 'PUSH',
+        method: 'WEBHOOK_POST',
+        url: '(Belum diatur)',
+        httpStatus: null,
+        durationMs: 0,
+        success: false,
+        message: 'URL Webhook Google Apps Script belum dikonfigurasi.',
+        recommendation: 'Buka pengaturan Spreadsheet dan masukkan URL Web App Google Apps Script (/exec).',
+      };
+      this.addSyncLog(errLog);
       return {
         success: false,
         message: 'URL Webhook Google Apps Script belum dikonfigurasi.',
+        log: errLog,
       };
     }
 
     try {
       const payload = this.toSheetsPayload();
       const res = await syncViaAppsScriptWebhook(url, payload);
+      const durationMs = Date.now() - startTime;
+
       if (res.success) {
         this.updateDatabase((prev) => ({
           ...prev,
@@ -1289,51 +1359,167 @@ class DataStorageService {
           },
         }));
       }
-      return res;
+
+      const log: SpreadsheetSyncLog = {
+        id: `log-${Date.now()}`,
+        timestamp: new Date().toLocaleTimeString('id-ID'),
+        action: 'PUSH',
+        method: 'WEBHOOK_POST',
+        url,
+        httpStatus: res.statusCode ?? 200,
+        durationMs,
+        success: res.success,
+        message: res.message,
+        details: res.details,
+      };
+      this.addSyncLog(log);
+
+      return {
+        success: res.success,
+        message: res.message,
+        log,
+      };
     } catch (err: any) {
+      const durationMs = Date.now() - startTime;
+      const log: SpreadsheetSyncLog = {
+        id: `log-${Date.now()}`,
+        timestamp: new Date().toLocaleTimeString('id-ID'),
+        action: 'PUSH',
+        method: 'WEBHOOK_POST',
+        url,
+        httpStatus: 0,
+        durationMs,
+        success: false,
+        message: err?.message || 'Gagal menyinkronkan data ke Spreadsheet Webhook.',
+        details: String(err),
+      };
+      this.addSyncLog(log);
       return {
         success: false,
         message: err?.message || 'Gagal menyinkronkan data ke Spreadsheet Webhook.',
+        log,
       };
     }
   }
 
-  public async pullFromLinkedSpreadsheet(webhookUrl?: string): Promise<{ success: boolean; count: number; message: string }> {
-    const url = webhookUrl || this.db.settings?.spreadsheetWebhookUrl;
-    if (!url) {
+  public async pullFromLinkedSpreadsheet(
+    webhookUrl?: string
+  ): Promise<{ success: boolean; count: number; message: string; log?: SpreadsheetSyncLog }> {
+    const startTime = Date.now();
+    const targetUrl = webhookUrl || this.db.settings?.spreadsheetWebhookUrl || this.db.settings?.spreadsheetUrl;
+    const fallbackSheetUrl = this.db.settings?.spreadsheetUrl;
+
+    if (!targetUrl) {
+      const errLog: SpreadsheetSyncLog = {
+        id: `log-${Date.now()}`,
+        timestamp: new Date().toLocaleTimeString('id-ID'),
+        action: 'PULL',
+        method: 'WEBHOOK_GET',
+        url: '(Belum diatur)',
+        httpStatus: null,
+        durationMs: 0,
+        success: false,
+        message: 'URL Webhook maupun URL Google Spreadsheet belum dikonfigurasi.',
+        recommendation: 'Masukkan URL Google Apps Script atau URL Google Spreadsheet di modal sinkronisasi.',
+      };
+      this.addSyncLog(errLog);
       return {
         success: false,
         count: 0,
-        message: 'URL Webhook Google Apps Script belum dikonfigurasi.',
+        message: 'URL Webhook maupun URL Google Spreadsheet belum dikonfigurasi.',
+        log: errLog,
       };
     }
 
     try {
-      const res = await fetchViaAppsScriptWebhook(url);
-      if (!res.success) {
-        return { success: false, count: 0, message: res.message };
+      let rawDataList: any[] = [];
+      let statusCode = 200;
+      let usedMethod: SpreadsheetSyncLog['method'] = 'WEBHOOK_GET';
+      let syncMessage = '';
+      let isCors = false;
+      let isAuth = false;
+
+      // 1. Check if direct Spreadsheet URL
+      if (targetUrl.includes('docs.google.com/spreadsheets')) {
+        usedMethod = 'GVIZ_CSV';
+        const gvizRes = await fetchSheetViaGViz(targetUrl, 'USERS');
+        statusCode = gvizRes.statusCode;
+        if (gvizRes.success && gvizRes.data.length > 0) {
+          rawDataList = gvizRes.data;
+          syncMessage = gvizRes.message;
+        } else {
+          throw new Error(gvizRes.message);
+        }
+      } else {
+        // 2. Apps Script Webhook
+        const res = await fetchViaAppsScriptWebhook(targetUrl, 'USERS');
+        statusCode = res.statusCode;
+        isCors = !!res.corsBlocked;
+        isAuth = !!res.authError;
+
+        if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+          rawDataList = res.data;
+          syncMessage = res.message || `Berhasil mengambil ${rawDataList.length} data.`;
+        } else if (res.data?.USERS && Array.isArray(res.data.USERS) && res.data.USERS.length > 0) {
+          rawDataList = res.data.USERS;
+          syncMessage = res.message || `Berhasil mengambil ${rawDataList.length} data.`;
+        } else {
+          // If Apps Script failed, check if we have a fallback Spreadsheet URL
+          const sheetId = extractSpreadsheetId(fallbackSheetUrl || '');
+          if (sheetId) {
+            const fallbackRes = await fetchSheetViaGViz(sheetId, 'USERS');
+            if (fallbackRes.success && fallbackRes.data.length > 0) {
+              usedMethod = 'GVIZ_CSV';
+              rawDataList = fallbackRes.data;
+              statusCode = fallbackRes.statusCode;
+              syncMessage = `Sinkronisasi dialihkan ke jalur Google Spreadsheet langsung (GViz CSV): ${fallbackRes.data.length} data berhasil ditarik!`;
+            } else {
+              throw new Error(res.message || 'Tidak ada data pengguna yang valid ditemukan dalam respons Google Apps Script.');
+            }
+          } else {
+            throw new Error(res.message || 'Tidak ada data pengguna yang valid ditemukan dalam respons Google Apps Script.');
+          }
+        }
       }
 
-      let importedCount = 0;
-      if (res.data?.USERS && Array.isArray(res.data.USERS) && res.data.USERS.length > 0) {
-        const users = res.data.USERS.map((u: any) => ({
-          id: u.id || `usr-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`,
-          username: u.username || u.name?.toLowerCase().replace(/\s+/g, '') || 'user',
-          role: u.role || 'MURID',
-          name: u.name || 'Pengguna',
-          email: u.email || '',
-          status: u.status || 'Aktif',
-          nis: u.nis || u.nip || '',
-          nip: u.nip || '',
-          avatar: u.avatar || '',
-          kelasId: u.kelasId || 'cls-xi-1',
-          tahunPelajaran: u.tahunPelajaran || '2026/2027',
-          jenisKelamin: u.jenisKelamin || 'L',
-        }));
+      // 3. Normalize User records
+      const mappedUsers: User[] = rawDataList.map((u: any, idx: number) => {
+        const rawRole = String(u.role || u.Role || u.peran || u.Peran || 'MURID').toUpperCase();
+        const role = rawRole.includes('GURU') ? 'GURU' : rawRole.includes('ADMIN') ? 'ADMIN' : 'MURID';
+        const rawName = u.name || u.nama || u.Nama || u.NAMA || u.namalengkap || u.nama_lengkap || `Pengguna ${idx + 1}`;
+        const rawUsername = u.username || u.Username || u.nis || u.nip || rawName.toLowerCase().replace(/\s+/g, '') || `user${idx + 1}`;
 
+        return {
+          id: u.id || u.ID || `usr-${Date.now()}-${idx}-${Math.random().toString(36).substring(2, 5)}`,
+          username: rawUsername,
+          role,
+          name: rawName,
+          email: u.email || u.Email || '',
+          status: (u.status || u.Status || 'Aktif') === 'Nonaktif' ? 'Nonaktif' : 'Aktif',
+          nis: u.nis || u.NIS || u.nisn || (role === 'MURID' ? u.nip : '') || '',
+          nip: u.nip || u.NIP || (role === 'GURU' ? u.nis : '') || '',
+          avatar: u.avatar || u.foto || '',
+          kelasId: u.kelasId || u.kelas || u.rombel || 'cls-xi-1',
+          tahunPelajaran: u.tahunPelajaran || u.tahun_ajaran || '2026/2027',
+          jenisKelamin: (u.jenisKelamin || u.gender || 'L').toUpperCase().startsWith('P') ? 'P' : 'L',
+        };
+      });
+
+      if (mappedUsers.length > 0) {
         this.updateDatabase((prev) => {
           const map = new Map(prev.users.map((item) => [item.id, item]));
-          users.forEach((item: User) => map.set(item.id, item));
+          // Also index by username to prevent duplicates
+          const usernameMap = new Map(prev.users.map((item) => [item.username.toLowerCase(), item.id]));
+
+          mappedUsers.forEach((item: User) => {
+            const existingId = usernameMap.get(item.username.toLowerCase());
+            if (existingId && existingId !== item.id) {
+              map.set(existingId, { ...map.get(existingId), ...item, id: existingId });
+            } else {
+              map.set(item.id, { ...map.get(item.id), ...item });
+            }
+          });
+
           return {
             ...prev,
             users: Array.from(map.values()),
@@ -1343,22 +1529,66 @@ class DataStorageService {
             },
           };
         });
-        importedCount = users.length;
       }
+
+      const durationMs = Date.now() - startTime;
+      const successLog: SpreadsheetSyncLog = {
+        id: `log-${Date.now()}`,
+        timestamp: new Date().toLocaleTimeString('id-ID'),
+        action: 'PULL',
+        method: usedMethod,
+        url: targetUrl,
+        httpStatus: statusCode,
+        durationMs,
+        success: true,
+        recordsCount: mappedUsers.length,
+        message: syncMessage || `Berhasil menarik ${mappedUsers.length} data dari Spreadsheet!`,
+      };
+      this.addSyncLog(successLog);
 
       return {
         success: true,
-        count: importedCount,
-        message: `Berhasil menarik ${importedCount} data dari Spreadsheet!`,
+        count: mappedUsers.length,
+        message: syncMessage || `Berhasil menarik ${mappedUsers.length} data dari Spreadsheet!`,
+        log: successLog,
       };
     } catch (err: any) {
+      const durationMs = Date.now() - startTime;
+      const errMsg = err?.message || 'Gagal menarik data dari Google Spreadsheet.';
+      const isCors = errMsg.includes('CORS') || errMsg.includes('TypeError') || errMsg.includes('fetch');
+      const isAuth = errMsg.includes('Autentikasi') || errMsg.includes('login') || errMsg.includes('Privat');
+
+      const errLog: SpreadsheetSyncLog = {
+        id: `log-${Date.now()}`,
+        timestamp: new Date().toLocaleTimeString('id-ID'),
+        action: 'PULL',
+        method: targetUrl.includes('docs.google.com') ? 'GVIZ_CSV' : 'WEBHOOK_GET',
+        url: targetUrl,
+        httpStatus: isCors ? 0 : isAuth ? 401 : 500,
+        durationMs,
+        success: false,
+        recordsCount: 0,
+        corsDetected: isCors,
+        authErrorDetected: isAuth,
+        message: errMsg,
+        details: String(err),
+        recommendation: isCors
+          ? 'Pastikan Google Apps Script di-deploy dengan "Who has access: Anyone (Siapa saja)". Atau gunakan link Google Spreadsheet dengan izin "Siapa saja dengan link dapat melihat".'
+          : isAuth
+          ? 'Akses Spreadsheet ditolak oleh Google. Ubah izin berbagi Google Sheets menjadi "Siapa saja yang memiliki tautan" sebagai Pelihat.'
+          : 'Periksa URL dan pastikan lembar kerja "USERS" memiliki header id, username, role, name, nip, email.',
+      };
+      this.addSyncLog(errLog);
+
       return {
         success: false,
         count: 0,
-        message: err?.message || 'Gagal menarik data dari Google Spreadsheet.',
+        message: errMsg,
+        log: errLog,
       };
     }
   }
+
 
   // Format data for Google Sheets tables
   public toSheetsPayload(): Record<string, any[]> {

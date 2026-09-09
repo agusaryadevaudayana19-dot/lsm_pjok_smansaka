@@ -305,6 +305,12 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
       </div>
 
+      {/* Center: Version Pill Badge - Visible across every menu */}
+      <div className="hidden xl:flex items-center gap-1.5 px-3 py-1 bg-slate-100/90 border border-slate-200/90 rounded-full text-[11px] font-extrabold text-blue-950 tracking-wider shadow-2xs">
+        <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+        <span>VERSI 2.4.0 - 2026 PJOK SMANSAKA</span>
+      </div>
+
       {/* Right: Actions, Notifications, & User Info */}
       <div className="flex items-center space-x-2 sm:space-x-3 lg:space-x-4">
         {/* Firestore Real-Time Sync Indicator */}

@@ -37,7 +37,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
   const [showForgotModal, setShowForgotModal] = useState(false);
 
   const db = dataStorage.getDatabase();
-  const schoolName = settings?.namaSekolah || db.settings?.namaSekolah || 'SMAN 1 Olahraga Nusantara';
+  const schoolName = settings?.namaSekolah || db.settings?.namaSekolah || 'SMA Negeri 1 Tejakula';
 
   const handleSelect = (user: User) => {
     if (onSelectUser) {
@@ -104,7 +104,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-blue-500 text-white shadow-lg font-black text-xl mb-2">
             PJOK
           </div>
-          <h2 className="text-xl font-black tracking-tight text-white">LMS PJOK Nusantara</h2>
+          <h2 className="text-xl font-black tracking-tight text-white">LMS PJOK SMANSAKA</h2>
           <p className="text-xs text-blue-200 mt-0.5">Pendidikan Jasmani, Olahraga, dan Kesehatan</p>
           <div className="inline-block mt-2 px-3 py-1 bg-white/10 rounded-full text-[11px] text-blue-100 border border-white/10">
             {schoolName}
@@ -260,8 +260,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({
             </div>
           </div>
 
-          <div className="mt-3 pt-2 text-center text-slate-400 text-[10px]">
-            &copy; 2026 {schoolName} • Sistem LMS PJOK
+          <div className="mt-3 pt-2 text-center text-slate-400 text-[10px] space-y-0.5">
+            <div className="font-bold text-slate-500">VERSI 2.4.0 - 2026 PJOK SMANSAKA</div>
+            <div>&copy; 2026 {schoolName} • Sistem LMS PJOK Terpadu</div>
           </div>
         </div>
       </div>

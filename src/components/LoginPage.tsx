@@ -162,9 +162,12 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLoginSuccess }) => {
             </button>
           </form>
 
-          <div className="mt-6 pt-4 border-t border-slate-800 text-center">
-            <p className="text-[11px] text-slate-500">
+          <div className="mt-6 pt-4 border-t border-slate-800 text-center space-y-1.5">
+            <p className="text-[11px] text-slate-400">
               Gunakan akun terdaftar Anda untuk mengakses portal LMS PJOK.
+            </p>
+            <p className="text-[10px] font-bold text-blue-400/90 tracking-widest uppercase">
+              VERSI 2.4.0 - 2026 PJOK SMANSAKA
             </p>
           </div>
         </div>

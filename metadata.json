@@ -1,6 +1,6 @@
 {
   "name": "LMS PJOK",
-  "description": "Learning Management System Pendidikan Jasmani, Olahraga, dan Kesehatan dengan integrasi Cloud Firestore real-time lintas perangkat laptop dan HP",
+  "description": "VERSI 2.4.0 - 2026 PJOK SMANSAKA - Learning Management System Penjasorkes Terpadu",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

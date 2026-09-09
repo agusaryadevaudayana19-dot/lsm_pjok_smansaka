@@ -245,8 +245,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       </nav>
 
       {/* Footer Version Marker */}
-      <div className="p-4 bg-slate-950 text-[10px] text-slate-500 text-center uppercase tracking-widest border-t border-slate-800/80 shrink-0">
-        Versi 2.4.0 • 2026 PJOK Nusantara
+      <div className="p-3.5 bg-slate-950 text-[10px] text-slate-400 text-center font-bold uppercase tracking-widest border-t border-slate-800/80 shrink-0">
+        VERSI 2.4.0 - 2026 PJOK SMANSAKA
       </div>
     </div>
   );

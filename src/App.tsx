@@ -279,11 +279,23 @@ export default function App() {
           </div>
         </main>
 
-        {/* Footer */}
-        <footer className="h-12 bg-white border-t border-gray-200 flex items-center justify-between px-6 sm:px-8 text-[11px] text-slate-400 shrink-0 font-medium">
-          <div>&copy; 2026 LMS PJOK - Learning Management System Penjasorkes</div>
-          <div className="hidden sm:block">
-            {db.settings?.namaSekolah || 'SMAN 1 Olahraga Nusantara'} • Sistem Terintegrasi
+        {/* Footer - Visible on every menu */}
+        <footer className="h-12 bg-white border-t border-gray-200 flex items-center justify-between px-4 sm:px-8 text-[11px] text-slate-500 shrink-0 font-medium z-10">
+          <div className="flex items-center gap-2">
+            <span className="font-black text-blue-950 tracking-wider">
+              VERSI 2.4.0 - 2026 PJOK SMANSAKA
+            </span>
+            <span className="hidden md:inline text-slate-300">•</span>
+            <span className="hidden md:inline text-slate-500">
+              Learning Management System Penjasorkes
+            </span>
+          </div>
+          <div className="hidden sm:flex items-center gap-2 text-slate-500 font-semibold">
+            <span>{db.settings?.namaSekolah || 'SMA Negeri 1 Tejakula'}</span>
+            <span className="text-slate-300">•</span>
+            <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200">
+              v2.4.0
+            </span>
           </div>
         </footer>
       </div>

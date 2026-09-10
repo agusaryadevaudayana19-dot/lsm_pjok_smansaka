@@ -206,6 +206,14 @@ export default function App() {
           );
         case 'jurnal':
           return <JurnalMengajarView db={db} currentUser={currentUser} />;
+        case 'settings':
+          return (
+            <SchoolSettings
+              db={db}
+              currentUser={currentUser}
+              onOpenSheets={() => setIsSheetsModalOpen(true)}
+            />
+          );
         default:
           return <GuruDashboard db={db} currentUser={currentUser} onNavigate={handleNavigate} />;
       }

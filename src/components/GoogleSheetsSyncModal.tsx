@@ -21,6 +21,7 @@ import {
   Sparkles,
   FileText,
   Activity,
+  Trash2,
 } from 'lucide-react';
 import { getGoogleAccessToken, signInWithGoogle, googleSignOut } from '../services/firebaseAuth';
 import {
@@ -247,6 +248,24 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
       type: 'success',
       text: '31 Data Siswa dan Guru SMAN 1 Olahraga resmi berhasil diterapkan kembali ke database!',
     });
+  };
+
+  // 6b. Reset to Clean Slate (Keep Admin & Guru, Google Spreadsheet safe)
+  const handleResetToCleanSlate = () => {
+    const isConfirmed = window.confirm(
+      'PERINGATAN: Apakah Anda yakin ingin mengosongkan seluruh data LMS (murid, materi, tugas, kuis, presensi, nilai)?\n\n' +
+      '✓ Data di Google Spreadsheet Anda 100% AMAN (tidak akan terhapus).\n' +
+      '✓ Akun Login Admin dan Guru tetap tersimpan.\n' +
+      '✓ Data di LMS akan menjadi 0 sehingga Anda bisa mulai mengisi dari nol atau mengimpor dari Spreadsheet.\n\n' +
+      'Klik OK untuk mengosongkan data.'
+    );
+    if (isConfirmed) {
+      dataStorage.resetToCleanSlate(true);
+      setStatusMessage({
+        type: 'success',
+        text: 'Database LMS berhasil dikosongkan (0). Anda siap mulai mengisi data baru atau mengimpor dari Google Sheets!',
+      });
+    }
   };
 
   // 7. Google OAuth connection & Spreadsheet creation
@@ -652,15 +671,27 @@ export const GoogleSheetsSyncModal: React.FC<GoogleSheetsSyncModalProps> = ({
                   placeholder={`id,username,role,name,nip,email,status\nusr-murid-1,usr-murid-1,murid1,Gede Aditya Peratama,7504,,Aktif`}
                   className="w-full p-2.5 text-xs font-mono bg-white border border-slate-300 rounded-lg focus:ring-2 focus:ring-sky-500"
                 />
-                <div className="flex justify-between items-center pt-1">
-                  <button
-                    type="button"
-                    onClick={handleRestoreOfficialStudents}
-                    className="text-xs text-emerald-700 font-semibold hover:underline flex items-center gap-1"
-                  >
-                    <RefreshCw className="w-3.5 h-3.5" />
-                    Terapkan 31 Siswa Resmi SMAN 1 Olahraga
-                  </button>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pt-1 border-t border-slate-100 mt-2">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={handleResetToCleanSlate}
+                      className="text-xs text-rose-600 font-bold hover:underline flex items-center gap-1 hover:text-rose-700"
+                      title="Kosongkan data murid, materi, tugas, kuis, nilai agar bisa diisi dari nol. Data Google Spreadsheet tetap aman!"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Kosongkan Data LMS (Mulai dari Nol)
+                    </button>
+                    <span className="text-slate-300 hidden sm:inline">•</span>
+                    <button
+                      type="button"
+                      onClick={handleRestoreOfficialStudents}
+                      className="text-xs text-emerald-700 font-semibold hover:underline flex items-center gap-1"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Terapkan 31 Siswa Resmi
+                    </button>
+                  </div>
                   <button
                     type="button"
                     onClick={handleImportPastedCSV}

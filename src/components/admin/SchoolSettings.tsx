@@ -8,6 +8,11 @@ import {
   CheckCircle2,
   Shield,
   FileSpreadsheet,
+  Trash2,
+  AlertTriangle,
+  Check,
+  X,
+  RefreshCw,
 } from 'lucide-react';
 import { SettingsApp, User } from '../../types';
 import { dataStorage, LMSDatabase } from '../../services/dataStorage';
@@ -33,6 +38,9 @@ export const SchoolSettings: React.FC<SchoolSettingsProps> = ({ db, currentUser,
     ...(db?.settings || {}),
   }));
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [showCleanModal, setShowCleanModal] = useState(false);
+  const [cleanConfirmInput, setCleanConfirmInput] = useState('');
+  const [isProcessingClean, setIsProcessingClean] = useState(false);
 
   const handleSaveSettings = (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,10 +87,25 @@ export const SchoolSettings: React.FC<SchoolSettingsProps> = ({ db, currentUser,
   };
 
   const handleResetSampleData = () => {
-    if (window.confirm('Reset database kembali ke contoh data awal sekolah?')) {
+    if (window.confirm('Reset database kembali ke contoh data awal sekolah (31 siswa demo + materi bawaan)?')) {
       dataStorage.resetToDefault();
       alert('Data telah direset kembali ke konfigurasi awal.');
       window.location.reload();
+    }
+  };
+
+  const handleExecuteCleanSlate = () => {
+    setIsProcessingClean(true);
+    try {
+      dataStorage.resetToCleanSlate(true);
+      setShowCleanModal(false);
+      alert(
+        'Berhasil!\n\nSeluruh data siswa, materi, tugas, kuis, presensi, dan nilai telah dikosongkan (0).\n\nAkun login Admin & Guru serta tautan Google Spreadsheet Anda tetap aman tersimpan.'
+      );
+      window.location.reload();
+    } catch (e: any) {
+      alert('Terjadi kesalahan saat mengosongkan data: ' + (e?.message || 'Unknown error'));
+      setIsProcessingClean(false);
     }
   };
 
@@ -271,13 +294,168 @@ export const SchoolSettings: React.FC<SchoolSettingsProps> = ({ db, currentUser,
 
           <button
             onClick={handleResetSampleData}
-            className="p-3.5 bg-rose-50 text-rose-800 border border-rose-200 hover:bg-rose-100 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+            className="p-3.5 bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100 rounded-2xl text-xs font-bold flex items-center justify-center gap-2 transition-colors"
+            title="Kembalikan ke data percontohan awal (31 siswa demo + kuis bawaan)"
           >
             <RotateCcw className="w-4 h-4" />
-            Reset Data Default
+            Reset Data Contoh (Demo)
           </button>
         </div>
       </div>
+
+      {/* Danger Zone: Mulai dari Nol (Kosongkan Data LMS) */}
+      <div className="bg-linear-to-b from-rose-50/60 to-white rounded-3xl p-6 sm:p-8 border-2 border-rose-200/80 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-rose-200/60">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+              <Trash2 className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-black text-sm text-rose-900 uppercase tracking-wider">
+                Mulai Mengisi dari Nol (Kosongkan Database LMS)
+              </h3>
+              <p className="text-[11px] text-rose-600/80 font-medium">
+                Bersihkan seluruh siswa & modul pembelajaran agar siap diisi dari nol atau disinkronkan dari Google Sheets
+              </p>
+            </div>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => {
+              setCleanConfirmInput('');
+              setShowCleanModal(true);
+            }}
+            className="px-4 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-2 shadow-xs transition-colors shrink-0"
+          >
+            <Trash2 className="w-4 h-4" />
+            Kosongkan Data (Mulai dari Nol)
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+          <div className="p-3.5 bg-white/80 rounded-2xl border border-rose-100 space-y-1.5">
+            <div className="flex items-center gap-1.5 font-bold text-rose-800">
+              <AlertTriangle className="w-4 h-4 text-rose-500" />
+              <span>Data yang Akan Dikosongkan (0):</span>
+            </div>
+            <ul className="text-slate-600 text-[11px] space-y-1 list-disc list-inside">
+              <li>Seluruh data <strong>Murid</strong> (31 siswa contoh dihapus)</li>
+              <li>Seluruh <strong>Materi Pembelajaran</strong> PJOK</li>
+              <li>Seluruh <strong>Tugas & Pengumpulan Tugas</strong></li>
+              <li>Seluruh <strong>Bank Kuis & Jawaban Ujian</strong></li>
+              <li>Seluruh <strong>Riwayat Presensi, Jurnal & Nilai</strong></li>
+            </ul>
+          </div>
+
+          <div className="p-3.5 bg-white/80 rounded-2xl border border-emerald-100 space-y-1.5">
+            <div className="flex items-center gap-1.5 font-bold text-emerald-800">
+              <Shield className="w-4 h-4 text-emerald-600" />
+              <span>Data yang Tetap AMAN & Tersimpan:</span>
+            </div>
+            <ul className="text-slate-600 text-[11px] space-y-1 list-disc list-inside">
+              <li><strong>Google Spreadsheet Anda:</strong> 100% AMAN di Google Drive (tidak akan terhapus)</li>
+              <li><strong>Akun Admin & Guru:</strong> Tetap aktif untuk login (Anda tidak akan terkunci)</li>
+              <li><strong>Tautan Spreadsheet & Webhook:</strong> Tetap tersambung di pengaturan</li>
+              <li><strong>Profil & Identitas Sekolah:</strong> Nama sekolah & semester tetap utuh</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* Confirmation Modal */}
+      {showCleanModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-lg rounded-3xl border border-slate-200 shadow-2xl overflow-hidden">
+            <div className="p-6 bg-rose-50 border-b border-rose-100 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-rose-600 text-white flex items-center justify-center shadow-xs">
+                  <AlertTriangle className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-sm text-slate-800">
+                    Konfirmasi Kosongkan Data LMS
+                  </h4>
+                  <p className="text-xs text-rose-700 font-medium">
+                    Tindakan ini akan mengosongkan seluruh konten & murid
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowCleanModal(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-white/80 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4 text-xs text-slate-600">
+              <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 text-emerald-800 space-y-1">
+                <p className="font-bold flex items-center gap-1.5">
+                  <Shield className="w-4 h-4 text-emerald-600 shrink-0" />
+                  Kecuali Data Google Spreadsheet:
+                </p>
+                <p className="text-[11px] text-emerald-700">
+                  Data pada <strong>Google Spreadsheet Anda TIDAK AKAN terhapus</strong> atau terganggu. Anda dapat mengimpor data siswa atau nilai dari Spreadsheet kapan saja setelah proses reset ini selesai.
+                </p>
+              </div>
+
+              <div className="p-3 bg-amber-50 rounded-2xl border border-amber-200 text-amber-800 space-y-1">
+                <p className="font-bold">Akun Login Pengelola Tetap Aman:</p>
+                <p className="text-[11px] text-amber-700">
+                  Akun login <strong>Admin</strong> dan <strong>Guru</strong> tetap dipertahankan dengan username & kata sandi yang sama.
+                </p>
+              </div>
+
+              <div className="space-y-2 pt-2 border-t border-slate-100">
+                <label className="block text-slate-700 font-bold">
+                  Untuk konfirmasi, ketik kata <span className="text-rose-600 font-mono font-black">RESET</span> di bawah ini:
+                </label>
+                <input
+                  type="text"
+                  value={cleanConfirmInput}
+                  onChange={(e) => setCleanConfirmInput(e.target.value)}
+                  placeholder="Ketik RESET di sini"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl font-mono text-center font-bold tracking-widest text-rose-700 focus:bg-white focus:outline-hidden focus:border-rose-400"
+                />
+              </div>
+
+              <div className="pt-3 flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={() => setShowCleanModal(false)}
+                  disabled={isProcessingClean}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExecuteCleanSlate}
+                  disabled={cleanConfirmInput.trim().toUpperCase() !== 'RESET' || isProcessingClean}
+                  className={`px-5 py-2 text-white font-bold rounded-xl text-xs flex items-center gap-1.5 transition-all shadow-xs ${
+                    cleanConfirmInput.trim().toUpperCase() === 'RESET' && !isProcessingClean
+                      ? 'bg-rose-600 hover:bg-rose-700 cursor-pointer'
+                      : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                  }`}
+                >
+                  {isProcessingClean ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      Membersihkan Data...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-3.5 h-3.5" />
+                      Ya, Kosongkan Data Sekarang
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

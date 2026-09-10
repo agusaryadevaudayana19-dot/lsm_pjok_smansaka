@@ -53,6 +53,8 @@ export interface LMSDatabase {
   notifikasi: NotifikasiItem[];
   nilai: RekapNilaiMurid[];
   settings: PengaturanSekolah;
+  isCleanSlate?: boolean;
+  cleanSlateTimestamp?: string;
 }
 
 const STORAGE_KEY = 'lms_pjok_db_v2';
@@ -1123,18 +1125,27 @@ class DataStorageService {
       const saved = localStorage.getItem(STORAGE_KEY) || localStorage.getItem('lms_pjok_db_v1');
       if (saved) {
         const parsed = JSON.parse(saved);
-        let loadedUsers: User[] = Array.isArray(parsed?.users) && parsed.users.length > 0 ? parsed.users : INITIAL_DATABASE.users;
-        // Auto-upgrade if previous database had old mock users or did not have 31 accurate students
-        const hasAccurateData = loadedUsers.some(
-          (u: any) => u.name === 'Gede Aditya Peratama' || u.name === 'I Ketut Agus Nova Anggarawan, S.Pd., Gr.'
-        );
-        if (!hasAccurateData || loadedUsers.length < 30) {
-          loadedUsers = INITIAL_DATABASE.users;
+        const isCleanSlate = parsed?.isCleanSlate === true;
+
+        let loadedUsers: User[] = Array.isArray(parsed?.users) && parsed.users.length > 0 ? parsed.users : (isCleanSlate ? [] : INITIAL_DATABASE.users);
+        if (!isCleanSlate) {
+          // Auto-upgrade if previous database had old mock users or did not have 31 accurate students
+          const hasAccurateData = loadedUsers.some(
+            (u: any) => u.name === 'Gede Aditya Peratama' || u.name === 'I Ketut Agus Nova Anggarawan, S.Pd., Gr.'
+          );
+          if (!hasAccurateData || loadedUsers.length < 30) {
+            loadedUsers = INITIAL_DATABASE.users;
+          }
         }
 
-        let loadedNilai = Array.isArray(parsed?.nilai) ? parsed.nilai : INITIAL_DATABASE.nilai;
-        if (!hasAccurateData || loadedNilai.length < 30) {
-          loadedNilai = INITIAL_DATABASE.nilai;
+        let loadedNilai = Array.isArray(parsed?.nilai) ? parsed.nilai : (isCleanSlate ? [] : INITIAL_DATABASE.nilai);
+        if (!isCleanSlate) {
+          const hasAccurateData = loadedUsers.some(
+            (u: any) => u.name === 'Gede Aditya Peratama' || u.name === 'I Ketut Agus Nova Anggarawan, S.Pd., Gr.'
+          );
+          if (!hasAccurateData || loadedNilai.length < 30) {
+            loadedNilai = INITIAL_DATABASE.nilai;
+          }
         }
 
         const primaryTeacher = 'I Ketut Agus Nova Anggarawan, S.Pd., Gr.';
@@ -1142,6 +1153,7 @@ class DataStorageService {
         return {
           ...INITIAL_DATABASE,
           ...parsed,
+          isCleanSlate,
           settings: {
             ...INITIAL_DATABASE.settings,
             ...(parsed?.settings || {}),
@@ -1152,59 +1164,62 @@ class DataStorageService {
           users: loadedUsers,
           kelas: Array.isArray(parsed?.kelas) ? parsed.kelas : INITIAL_DATABASE.kelas,
           mataPelajaran: Array.isArray(parsed?.mataPelajaran) ? parsed.mataPelajaran : INITIAL_DATABASE.mataPelajaran,
-          materi: (Array.isArray(parsed?.materi) ? parsed.materi : INITIAL_DATABASE.materi).map((m: any) => ({
-            ...m,
-            guruNama: m.guruNama === 'Haryono, S.Pd.Jas' ? primaryTeacher : (m.guruNama || m.dibuatOleh || primaryTeacher),
-            dibuatOleh: m.dibuatOleh === 'Haryono, S.Pd.Jas' ? primaryTeacher : (m.dibuatOleh || m.guruNama || primaryTeacher),
-            materiInti: m.materiInti || m.kontenTeks || m.konten || '',
-          })),
-          tugas: (Array.isArray(parsed?.tugas) ? parsed.tugas : INITIAL_DATABASE.tugas).map((t: any) => ({
-            ...t,
-            guruNama: t.guruNama === 'Haryono, S.Pd.Jas' ? primaryTeacher : (t.guruNama || t.dibuatOleh || primaryTeacher),
-            dibuatOleh: t.dibuatOleh === 'Haryono, S.Pd.Jas' ? primaryTeacher : (t.dibuatOleh || t.guruNama || primaryTeacher),
-          })),
-          pengumpulanTugas: Array.isArray(parsed?.pengumpulanTugas) ? parsed.pengumpulanTugas : INITIAL_DATABASE.pengumpulanTugas,
-          quiz: (Array.isArray(parsed?.quiz) && parsed.quiz.length > 0 ? parsed.quiz : INITIAL_DATABASE.quiz).map((q: any) => {
-            let rawSoal = Array.isArray(q.soal) && q.soal.length > 0 
-              ? q.soal 
-              : (Array.isArray(q.soalList) ? q.soalList : []);
-            
-            // Auto-upgrade if quiz has outdated or incomplete question list
-            if (rawSoal.length < 6 || !rawSoal.some((s: any) => s.tipe === 'Mencocokkan Gambar' || s.tipe === 'Tarik Garis')) {
-              rawSoal = DEFAULT_QUIZ_SOAL;
-            }
+          materi: Array.isArray(parsed?.materi)
+            ? (isCleanSlate ? parsed.materi : parsed.materi.map((m: any) => ({
+                ...m,
+                guruNama: m.guruNama === 'Haryono, S.Pd.Jas' ? primaryTeacher : (m.guruNama || m.dibuatOleh || primaryTeacher),
+                dibuatOleh: m.dibuatOleh === 'Haryono, S.Pd.Jas' ? primaryTeacher : (m.dibuatOleh || m.guruNama || primaryTeacher),
+                materiInti: m.materiInti || m.kontenTeks || m.konten || '',
+              })))
+            : (isCleanSlate ? [] : INITIAL_DATABASE.materi),
+          tugas: Array.isArray(parsed?.tugas)
+            ? (isCleanSlate ? parsed.tugas : parsed.tugas.map((t: any) => ({
+                ...t,
+                guruNama: t.guruNama === 'Haryono, S.Pd.Jas' ? primaryTeacher : (t.guruNama || t.dibuatOleh || primaryTeacher),
+                dibuatOleh: t.dibuatOleh === 'Haryono, S.Pd.Jas' ? primaryTeacher : (t.dibuatOleh || t.guruNama || primaryTeacher),
+              })))
+            : (isCleanSlate ? [] : INITIAL_DATABASE.tugas),
+          pengumpulanTugas: Array.isArray(parsed?.pengumpulanTugas) ? parsed.pengumpulanTugas : (isCleanSlate ? [] : INITIAL_DATABASE.pengumpulanTugas),
+          quiz: Array.isArray(parsed?.quiz)
+            ? (isCleanSlate ? parsed.quiz : parsed.quiz.map((q: any) => {
+                let rawSoal = Array.isArray(q.soal) && q.soal.length > 0 
+                  ? q.soal 
+                  : (Array.isArray(q.soalList) ? q.soalList : []);
+                
+                if (rawSoal.length < 6 || !rawSoal.some((s: any) => s.tipe === 'Mencocokkan Gambar' || s.tipe === 'Tarik Garis')) {
+                  rawSoal = DEFAULT_QUIZ_SOAL;
+                }
 
-            return {
-              ...q,
-              soal: rawSoal,
-              soalList: rawSoal,
-              guruNama: q.guruNama === 'Haryono, S.Pd.Jas' ? primaryTeacher : (q.guruNama || q.dibuatOleh || primaryTeacher),
-              dibuatOleh: q.dibuatOleh === 'Haryono, S.Pd.Jas' ? primaryTeacher : (q.dibuatOleh || q.guruNama || primaryTeacher),
-            };
-          }),
-          jawabanQuiz: Array.isArray(parsed?.jawabanQuiz) ? parsed.jawabanQuiz : INITIAL_DATABASE.jawabanQuiz,
-          penilaianPraktik: (
-            Array.isArray(parsed?.penilaianPraktik)
-              ? parsed.penilaianPraktik
-              : INITIAL_DATABASE.penilaianPraktik
-          ).map((p: any) => ({
-            ...p,
-            materiJudul: p.materiJudul || p.materi || 'Praktik PJOK',
-            nilaiTotal: p.nilaiTotal ?? p.nilaiAkhir ?? 80,
-            catatanEvaluasi: p.catatanEvaluasi || p.catatanGuru || '',
-            guruPenilai: p.guruPenilai === 'Haryono, S.Pd.Jas' ? primaryTeacher : (p.guruPenilai || p.guruNama || primaryTeacher),
-            rubrik: p.rubrik || {
-              sikapAwal: p.aspekNilai?.sikapAwal ?? 3,
-              pelaksanaanTeknik: p.aspekNilai?.teknikGerakan ?? 3,
-              sikapAkhir: p.aspekNilai?.koordinasi ?? 3,
-              hasilGerakan: p.aspekNilai?.ketepatan ?? 3,
-              sportivitas: p.aspekNilai?.sportivitas ?? 4,
-              kerjaSama: p.aspekNilai?.kerjaSama ?? 4,
-            },
-          })),
-          presensi: Array.isArray(parsed?.presensi) ? parsed.presensi : INITIAL_DATABASE.presensi,
-          jurnal: Array.isArray(parsed?.jurnal) ? parsed.jurnal : INITIAL_DATABASE.jurnal,
-          notifikasi: Array.isArray(parsed?.notifikasi) ? parsed.notifikasi : INITIAL_DATABASE.notifikasi,
+                return {
+                  ...q,
+                  soal: rawSoal,
+                  soalList: rawSoal,
+                  guruNama: q.guruNama === 'Haryono, S.Pd.Jas' ? primaryTeacher : (q.guruNama || q.dibuatOleh || primaryTeacher),
+                  dibuatOleh: q.dibuatOleh === 'Haryono, S.Pd.Jas' ? primaryTeacher : (q.dibuatOleh || q.guruNama || primaryTeacher),
+                };
+              }))
+            : (isCleanSlate ? [] : INITIAL_DATABASE.quiz),
+          jawabanQuiz: Array.isArray(parsed?.jawabanQuiz) ? parsed.jawabanQuiz : (isCleanSlate ? [] : INITIAL_DATABASE.jawabanQuiz),
+          penilaianPraktik: Array.isArray(parsed?.penilaianPraktik)
+            ? (isCleanSlate ? parsed.penilaianPraktik : parsed.penilaianPraktik.map((p: any) => ({
+                ...p,
+                materiJudul: p.materiJudul || p.materi || 'Praktik PJOK',
+                nilaiTotal: p.nilaiTotal ?? p.nilaiAkhir ?? 80,
+                catatanEvaluasi: p.catatanEvaluasi || p.catatanGuru || '',
+                guruPenilai: p.guruPenilai === 'Haryono, S.Pd.Jas' ? primaryTeacher : (p.guruPenilai || p.guruNama || primaryTeacher),
+                rubrik: p.rubrik || {
+                  sikapAwal: p.aspekNilai?.sikapAwal ?? 3,
+                  pelaksanaanTeknik: p.aspekNilai?.teknikGerakan ?? 3,
+                  sikapAkhir: p.aspekNilai?.koordinasi ?? 3,
+                  hasilGerakan: p.aspekNilai?.ketepatan ?? 3,
+                  sportivitas: p.aspekNilai?.sportivitas ?? 4,
+                  kerjaSama: p.aspekNilai?.kerjaSama ?? 4,
+                },
+              })))
+            : (isCleanSlate ? [] : INITIAL_DATABASE.penilaianPraktik),
+          presensi: Array.isArray(parsed?.presensi) ? parsed.presensi : (isCleanSlate ? [] : INITIAL_DATABASE.presensi),
+          jurnal: Array.isArray(parsed?.jurnal) ? parsed.jurnal : (isCleanSlate ? [] : INITIAL_DATABASE.jurnal),
+          notifikasi: Array.isArray(parsed?.notifikasi) ? parsed.notifikasi : (isCleanSlate ? [] : INITIAL_DATABASE.notifikasi),
           nilai: loadedNilai,
         };
       }
@@ -1254,6 +1269,70 @@ class DataStorageService {
 
   public resetToDefaults() {
     this.db = JSON.parse(JSON.stringify(INITIAL_DATABASE));
+    this.notify();
+    this.seedAllToFirestore();
+  }
+
+  /**
+   * Mengosongkan seluruh data pembelajaran, siswa, kuis, tugas, dan nilai agar bisa diisi dari nol.
+   * Tetap mempertahankan:
+   * 1. Akun Admin dan Guru utama (agar tidak terkunci keluar)
+   * 2. Pengaturan sekolah dan konfigurasi Google Spreadsheet / Webhook
+   */
+  public resetToCleanSlate(keepAdminAndGuru: boolean = true) {
+    const currentSettings = this.db.settings || INITIAL_DATABASE.settings;
+
+    let retainedUsers: User[] = [];
+    if (keepAdminAndGuru) {
+      retainedUsers = (this.db.users || []).filter((u) => u.role === 'ADMIN' || u.role === 'GURU');
+      if (!retainedUsers.some((u) => u.role === 'ADMIN')) {
+        retainedUsers.unshift(DEFAULT_USERS[0]);
+      }
+      if (!retainedUsers.some((u) => u.role === 'GURU')) {
+        const defaultTeacher = DEFAULT_USERS.find((u) => u.role === 'GURU') || DEFAULT_USERS[1];
+        retainedUsers.push(defaultTeacher);
+      }
+    } else {
+      retainedUsers = [DEFAULT_USERS[0], DEFAULT_USERS[1]];
+    }
+
+    const resetKelas = (this.db.kelas || INITIAL_DATABASE.kelas).map((k) => ({
+      ...k,
+      totalMurid: 0,
+    }));
+
+    const cleanDb: LMSDatabase = {
+      isCleanSlate: true,
+      cleanSlateTimestamp: new Date().toISOString(),
+      settings: {
+        ...currentSettings,
+        terakhirSinkron: new Date().toISOString(),
+      },
+      users: retainedUsers,
+      kelas: resetKelas,
+      mataPelajaran: this.db.mataPelajaran || INITIAL_DATABASE.mataPelajaran,
+      materi: [],
+      tugas: [],
+      pengumpulanTugas: [],
+      quiz: [],
+      jawabanQuiz: [],
+      penilaianPraktik: [],
+      presensi: [],
+      jurnal: [],
+      notifikasi: [
+        {
+          id: `notif-clean-${Date.now()}`,
+          judul: 'Database Telah Direset ke Nol',
+          pesan: 'Data pembelajaran, tugas, kuis, nilai, dan murid telah dibersihkan. Anda dapat mulai mengisi dari nol atau mengimpor dari Google Sheets.',
+          tipe: 'pengumuman',
+          waktu: 'Baru saja',
+          dibaca: false,
+        },
+      ],
+      nilai: [],
+    };
+
+    this.db = cleanDb;
     this.notify();
     this.seedAllToFirestore();
   }

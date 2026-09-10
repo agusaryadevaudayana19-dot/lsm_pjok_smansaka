@@ -115,6 +115,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'jurnal', label: 'Jurnal Mengajar', icon: <FileText className="w-5 h-5" /> },
       ],
     },
+    {
+      title: 'Pengaturan & Cadangan',
+      items: [
+        { id: 'settings', label: 'Pengaturan & Reset Data', icon: <Settings className="w-5 h-5" /> },
+      ],
+    },
   ];
 
   const getMuridSections = (): MenuSection[] => [

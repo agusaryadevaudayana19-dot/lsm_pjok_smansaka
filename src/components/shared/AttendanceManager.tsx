@@ -300,7 +300,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ db, role, 
           <div className="space-y-1">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-white/10 rounded-full text-[11px] font-semibold text-blue-200 backdrop-blur-xs">
               <CalendarCheck className="w-3 h-3 text-emerald-400" />
-              <span>Presensi Guru PJOK • VERSI 2.4.0 - 2026 PJOK NUSANTARA</span>
+              <span>Presensi Guru PJOK • VERSI 2.4.0 - 2026 PJOK SMANSAKA</span>
             </div>
             <h2 className="text-xl sm:text-2xl font-black tracking-tight">
               Presensi Siswa Harian
@@ -698,19 +698,19 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ db, role, 
                 <Lock className="w-3.5 h-3.5" />
               </div>
               <span>
-                Kolom <strong>No</strong>, <strong>Nama Murid</strong>, dan <strong>STATUS KEHADIRAN</strong> dibekukan di sisi kiri. Geser tabel ke kanan untuk melihat dan memilih status kehadiran secara penuh.
+                Kolom <strong>No</strong>, <strong>Nama Murid</strong>, dan <strong>STATUS KEHADIRAN</strong> dibekukan di sisi kiri. Geser tabel ke kanan untuk memilih tombol status kehadiran (H, S, I, A, T).
               </span>
             </div>
             <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
               <span className="text-[10px] font-black tracking-wider text-blue-800 bg-blue-100/90 border border-blue-200 px-2.5 py-1 rounded-full uppercase">
-                VERSI 2.4.0 - 2026 PJOK NUSANTARA
+                VERSI 2.4.0 - 2026 PJOK SMANSAKA
               </span>
             </div>
           </div>
 
           <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-xs overflow-hidden">
             <div className="overflow-x-auto relative max-h-[640px] overflow-y-auto">
-              <table className="w-full text-left border-collapse text-xs min-w-[980px]">
+              <table className="w-full text-left border-collapse text-xs min-w-[760px]">
                 <thead>
                   <tr className="bg-slate-100/95 text-slate-700 font-black uppercase tracking-wider border-b border-slate-200 sticky top-0 z-40 shadow-2xs">
                     {/* Kolom 1 Dibekukan: No */}
@@ -731,26 +731,9 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ db, role, 
                       </div>
                     </th>
 
-                    {/* Kolom Geser ke Kanan: Pilihan Status Penuh */}
-                    <th className="py-3.5 px-4 text-center min-w-[280px] bg-slate-50 border-r border-slate-200">
-                      Pilih Status Penuh (H, S, I, A, T)
-                    </th>
-
-                    {/* Kolom Opsi Standar Ledger: H, S, I, A, T */}
-                    <th className="py-3.5 px-2 text-center w-12 min-w-[48px] bg-emerald-50 text-emerald-800 border-r border-slate-200">
-                      H
-                    </th>
-                    <th className="py-3.5 px-2 text-center w-12 min-w-[48px] bg-sky-50 text-sky-800 border-r border-slate-200">
-                      S
-                    </th>
-                    <th className="py-3.5 px-2 text-center w-12 min-w-[48px] bg-amber-50 text-amber-800 border-r border-slate-200">
-                      I
-                    </th>
-                    <th className="py-3.5 px-2 text-center w-12 min-w-[48px] bg-rose-50 text-rose-800 border-r border-slate-200">
-                      A
-                    </th>
-                    <th className="py-3.5 px-2 text-center w-12 min-w-[48px] bg-purple-50 text-purple-800 border-r border-slate-200">
-                      T
+                    {/* Kolom Geser ke Kanan: Tombol Pilihan Status (H, S, I, A, T) - Kotak Huruf Saja */}
+                    <th className="py-3.5 px-4 text-center min-w-[260px] bg-slate-50 border-r border-slate-200">
+                      Pilihan Status (H, S, I, A, T)
                     </th>
 
                     {/* Kolom Keterangan / Alasan Lengkap */}
@@ -768,7 +751,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ db, role, 
                 <tbody className="divide-y divide-slate-100 text-slate-700">
                   {filteredMurid.length === 0 ? (
                     <tr>
-                      <td colSpan={11} className="py-12 text-center text-slate-400 text-xs">
+                      <td colSpan={6} className="py-12 text-center text-slate-400 text-xs">
                         Tidak ditemukan data murid yang sesuai filter pencarian.
                       </td>
                     </tr>
@@ -833,9 +816,9 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ db, role, 
                             </button>
                           </td>
 
-                          {/* Kolom Geser Kanan: PILIH STATUS PENUH (H, S, I, A, T) */}
+                          {/* Kolom Geser Kanan: 1 KOLOM PILIHAN STATUS (H, S, I, A, T) DENGAN KOTAK ISI HURUF SAJA & SENTUH LAPANG */}
                           <td className="py-2.5 px-4 text-center border-r border-slate-100">
-                            <div className="inline-flex items-center gap-1.5 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80 shadow-2xs">
+                            <div className="inline-flex items-center gap-1.5 sm:gap-2 p-1 bg-slate-100/90 rounded-2xl border border-slate-200/80 shadow-2xs">
                               {STATUS_LIST.map((st) => {
                                 const isSelected = currentStatus === st.key;
                                 return (
@@ -843,99 +826,18 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ db, role, 
                                     key={st.key}
                                     type="button"
                                     onClick={() => handleChangeStatus(murid.id, st.key)}
-                                    className={`px-2.5 py-1.5 rounded-xl text-xs font-black transition-all flex items-center gap-1 cursor-pointer ${
+                                    className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl text-sm sm:text-base font-black transition-all flex items-center justify-center cursor-pointer shadow-2xs active:scale-95 ${
                                       isSelected
-                                        ? st.activeColor
-                                        : 'text-slate-600 hover:text-slate-950 hover:bg-white'
+                                        ? `${st.activeColor} ring-2 ring-offset-1 ring-blue-400`
+                                        : 'bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-950 border border-slate-200/90'
                                     }`}
                                     title={`Setel ${st.name} (${st.code})`}
                                   >
-                                    <span className="font-mono text-xs">{st.code}</span>
-                                    <span className="hidden xl:inline text-[11px] font-semibold">{st.name}</span>
+                                    <span>{st.code}</span>
                                   </button>
                                 );
                               })}
                             </div>
-                          </td>
-
-                          {/* Kolom Opsi Individual: H */}
-                          <td className="py-2.5 px-2 text-center border-r border-slate-100">
-                            <button
-                              type="button"
-                              onClick={() => handleChangeStatus(murid.id, 'H')}
-                              className={`w-7 h-7 rounded-lg text-xs font-black transition-all mx-auto flex items-center justify-center cursor-pointer ${
-                                currentStatus === 'H'
-                                  ? 'bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-300'
-                                  : 'text-slate-400 hover:bg-emerald-50 hover:text-emerald-700'
-                              }`}
-                              title="Pilih Hadir (H)"
-                            >
-                              H
-                            </button>
-                          </td>
-
-                          {/* Kolom Opsi Individual: S */}
-                          <td className="py-2.5 px-2 text-center border-r border-slate-100">
-                            <button
-                              type="button"
-                              onClick={() => handleChangeStatus(murid.id, 'S')}
-                              className={`w-7 h-7 rounded-lg text-xs font-black transition-all mx-auto flex items-center justify-center cursor-pointer ${
-                                currentStatus === 'S'
-                                  ? 'bg-sky-600 text-white shadow-xs ring-2 ring-sky-300'
-                                  : 'text-slate-400 hover:bg-sky-50 hover:text-sky-700'
-                              }`}
-                              title="Pilih Sakit (S)"
-                            >
-                              S
-                            </button>
-                          </td>
-
-                          {/* Kolom Opsi Individual: I */}
-                          <td className="py-2.5 px-2 text-center border-r border-slate-100">
-                            <button
-                              type="button"
-                              onClick={() => handleChangeStatus(murid.id, 'I')}
-                              className={`w-7 h-7 rounded-lg text-xs font-black transition-all mx-auto flex items-center justify-center cursor-pointer ${
-                                currentStatus === 'I'
-                                  ? 'bg-amber-500 text-white shadow-xs ring-2 ring-amber-300'
-                                  : 'text-slate-400 hover:bg-amber-50 hover:text-amber-700'
-                              }`}
-                              title="Pilih Izin (I)"
-                            >
-                              I
-                            </button>
-                          </td>
-
-                          {/* Kolom Opsi Individual: A */}
-                          <td className="py-2.5 px-2 text-center border-r border-slate-100">
-                            <button
-                              type="button"
-                              onClick={() => handleChangeStatus(murid.id, 'A')}
-                              className={`w-7 h-7 rounded-lg text-xs font-black transition-all mx-auto flex items-center justify-center cursor-pointer ${
-                                currentStatus === 'A'
-                                  ? 'bg-rose-600 text-white shadow-xs ring-2 ring-rose-300'
-                                  : 'text-slate-400 hover:bg-rose-50 hover:text-rose-700'
-                              }`}
-                              title="Pilih Alpa (A)"
-                            >
-                              A
-                            </button>
-                          </td>
-
-                          {/* Kolom Opsi Individual: T */}
-                          <td className="py-2.5 px-2 text-center border-r border-slate-100">
-                            <button
-                              type="button"
-                              onClick={() => handleChangeStatus(murid.id, 'T')}
-                              className={`w-7 h-7 rounded-lg text-xs font-black transition-all mx-auto flex items-center justify-center cursor-pointer ${
-                                currentStatus === 'T'
-                                  ? 'bg-purple-600 text-white shadow-xs ring-2 ring-purple-300'
-                                  : 'text-slate-400 hover:bg-purple-50 hover:text-purple-700'
-                              }`}
-                              title="Pilih Terlambat (T)"
-                            >
-                              T
-                            </button>
                           </td>
 
                           {/* Kolom Keterangan / Alasan Lengkap */}

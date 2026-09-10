@@ -217,7 +217,7 @@ export default function App() {
         case 'dashboard':
           return <MuridDashboard db={db} currentUser={currentUser} onNavigate={handleNavigate} />;
         case 'materi-saya':
-          return <MuridMateri db={db} initialMateriId={activeSubParam} />;
+          return <MuridMateri db={db} currentUser={currentUser} initialMateriId={activeSubParam} />;
         case 'tugas-saya':
           return <MuridTugas db={db} currentUser={currentUser} />;
         case 'quiz-saya':

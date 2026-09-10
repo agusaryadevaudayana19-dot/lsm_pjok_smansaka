@@ -23,6 +23,11 @@ import { Materi, User } from '../../types';
 import { dataStorage, LMSDatabase } from '../../services/dataStorage';
 import { InAppMediaModal, parseMediaUrl } from './InAppMediaModal';
 import { UploadDataModal } from './UploadDataModal';
+import {
+  getMateriCategoryList,
+  isMateriCategoryMatch,
+  STANDARD_MATERI_CATEGORIES,
+} from '../../utils/materiCategoryUtils';
 
 interface MateriManagerProps {
   db: LMSDatabase;
@@ -65,25 +70,15 @@ export const MateriManager: React.FC<MateriManagerProps> = ({ db, currentUser })
     status: 'Publish',
   });
 
-  const categories = [
-    'Semua',
-    'Permainan Bola Besar',
-    'Permainan Bola Kecil',
-    'Atletik',
-    'Aktivitas Kebugaran',
-    'Senam & Ritmik',
-    'Pola Hidup Sehat & P3K',
-  ];
+  const categories = getMateriCategoryList(db.materi);
 
   const filteredMateri = db.materi.filter((m) => {
-    const matchCat =
-      selectedKategori === 'Semua' ||
-      m.kategori.toLowerCase().includes(selectedKategori.toLowerCase()) ||
-      m.judul.toLowerCase().includes(selectedKategori.toLowerCase());
+    const matchCat = isMateriCategoryMatch(m, selectedKategori);
 
     const matchQuery =
       m.judul.toLowerCase().includes(searchQuery.toLowerCase()) ||
       m.deskripsi.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (m.kategori && m.kategori.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (m.tujuanPembelajaran && m.tujuanPembelajaran.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (m.materiInti && m.materiInti.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (m.kontenTeks && m.kontenTeks.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -619,14 +614,19 @@ export const MateriManager: React.FC<MateriManagerProps> = ({ db, currentUser })
                   <select
                     value={form.kategori || 'Permainan Bola Besar'}
                     onChange={(e) => setForm({ ...form, kategori: e.target.value })}
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden text-xs"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden text-xs font-medium"
                   >
-                    <option value="Permainan Bola Besar">Permainan Bola Besar</option>
-                    <option value="Permainan Bola Kecil">Permainan Bola Kecil</option>
-                    <option value="Atletik">Atletik</option>
-                    <option value="Aktivitas Kebugaran">Aktivitas Kebugaran</option>
-                    <option value="Senam & Ritmik">Senam & Ritmik</option>
-                    <option value="Pola Hidup Sehat & P3K">Pola Hidup Sehat & P3K</option>
+                    {categories
+                      .filter((c) => c !== 'Semua')
+                      .map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    {form.kategori &&
+                      !categories.includes(form.kategori) && (
+                        <option value={form.kategori}>{form.kategori}</option>
+                      )}
                   </select>
                 </div>
 

@@ -13,17 +13,22 @@ import {
   ChevronRight,
   Download,
 } from 'lucide-react';
-import { Materi } from '../../types';
+import { Materi, User } from '../../types';
 import { LMSDatabase } from '../../services/dataStorage';
 import { InAppMediaModal, parseMediaUrl } from '../shared/InAppMediaModal';
 import { downloadMateriOffline } from '../../utils/fileUploadTemplates';
+import {
+  getMateriCategoryList,
+  isMateriCategoryMatch,
+} from '../../utils/materiCategoryUtils';
 
 interface MuridMateriProps {
   db: LMSDatabase;
+  currentUser?: User;
   initialMateriId?: string;
 }
 
-export const MuridMateri: React.FC<MuridMateriProps> = ({ db, initialMateriId }) => {
+export const MuridMateri: React.FC<MuridMateriProps> = ({ db, currentUser, initialMateriId }) => {
   const [selectedKategori, setSelectedKategori] = useState<string>('Semua');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [activeMateri, setActiveMateri] = useState<Materi | null>(
@@ -42,26 +47,26 @@ export const MuridMateri: React.FC<MuridMateriProps> = ({ db, initialMateriId })
     title: '',
   });
 
-  const categories = [
-    'Semua',
-    'Sepak Bola',
-    'Bola Voli',
-    'Bola Basket',
-    'Bulu Tangkis',
-    'Senam Lantai',
-    'Kebugaran Jasmani',
-    'Pola Hidup Sehat',
-  ];
+  // Dynamically synchronized categories from DB + standard PJOK categories
+  const categories = getMateriCategoryList(db.materi);
 
-  const filteredMateri = db.materi.filter((m) => {
-    if (m.status !== 'Publish') return false;
-    const matchCat =
-      selectedKategori === 'Semua' ||
-      m.kategori.toLowerCase().includes(selectedKategori.toLowerCase()) ||
-      m.judul.toLowerCase().includes(selectedKategori.toLowerCase());
+  const getCategoryCount = (cat: string) => {
+    if (cat === 'Semua') {
+      return (db.materi || []).filter((m) => m.status === 'Publish' || !m.status).length;
+    }
+    return (db.materi || []).filter(
+      (m) => (m.status === 'Publish' || !m.status) && isMateriCategoryMatch(m, cat)
+    ).length;
+  };
+
+  const filteredMateri = (db.materi || []).filter((m) => {
+    if (m.status && m.status !== 'Publish') return false;
+    const matchCat = isMateriCategoryMatch(m, selectedKategori);
     const matchQuery =
+      !searchQuery.trim() ||
       m.judul.toLowerCase().includes(searchQuery.toLowerCase()) ||
       m.deskripsi.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (m.kategori && m.kategori.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (m.tujuanPembelajaran && m.tujuanPembelajaran.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (m.materiInti && m.materiInti.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (m.kontenTeks && m.kontenTeks.toLowerCase().includes(searchQuery.toLowerCase()));
@@ -102,22 +107,61 @@ export const MuridMateri: React.FC<MuridMateriProps> = ({ db, initialMateriId })
         </div>
       </div>
 
-      {/* Category Pills */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setSelectedKategori(cat)}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
-              selectedKategori === cat
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
+      {/* Category Pills (Sinkron dengan kategori Admin & Guru) */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+        {categories.map((cat) => {
+          const count = getCategoryCount(cat);
+          const isSelected = selectedKategori === cat;
+          return (
+            <button
+              key={cat}
+              onClick={() => setSelectedKategori(cat)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 flex items-center gap-1.5 ${
+                isSelected
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              <span>{cat}</span>
+              <span
+                className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono font-bold ${
+                  isSelected ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'
+                }`}
+              >
+                {count}
+              </span>
+            </button>
+          );
+        })}
       </div>
+
+      {/* Empty State jika tidak ada materi pada kategori yang dipilih */}
+      {filteredMateri.length === 0 && (
+        <div className="bg-white rounded-3xl border border-dashed border-slate-200 p-8 text-center space-y-3 shadow-2xs">
+          <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+            <BookOpen className="w-6 h-6" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-slate-800">
+              Tidak Ada Materi Pembelajaran
+            </h4>
+            <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+              {searchQuery
+                ? `Tidak ditemukan materi dengan kata kunci "${searchQuery}".`
+                : `Belum ada modul materi pada kategori "${selectedKategori}".`}
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              setSelectedKategori('Semua');
+              setSearchQuery('');
+            }}
+            className="px-4 py-2 bg-emerald-600 text-white text-xs font-bold rounded-xl hover:bg-emerald-700 transition-colors inline-flex items-center gap-1.5 shadow-xs"
+          >
+            Tampilkan Semua Materi
+          </button>
+        </div>
+      )}
 
       {/* Materi Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">

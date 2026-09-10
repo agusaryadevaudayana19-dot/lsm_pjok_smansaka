@@ -17,6 +17,7 @@ import {
   Lock,
   ArrowRight,
   ArrowLeft,
+  Smartphone,
 } from 'lucide-react';
 import { PresensiRecord, StatusPresensi, User, UserRole } from '../../types';
 import { dataStorage, LMSDatabase } from '../../services/dataStorage';
@@ -34,6 +35,7 @@ interface StatusConfig {
   badgeBg: string;
   badgeText: string;
   activeColor: string;
+  unselectedColor: string;
   ringColor: string;
 }
 
@@ -44,7 +46,8 @@ const STATUS_LIST: StatusConfig[] = [
     name: 'Hadir',
     badgeBg: 'bg-emerald-100 dark:bg-emerald-950/60',
     badgeText: 'text-emerald-800 dark:text-emerald-300',
-    activeColor: 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-400/80',
+    activeColor: 'bg-emerald-600 text-white shadow-xs ring-2 ring-emerald-400 font-black',
+    unselectedColor: 'bg-emerald-50/80 text-emerald-800 border border-emerald-200/90 hover:bg-emerald-100 font-bold',
     ringColor: 'border-emerald-500',
   },
   {
@@ -53,7 +56,8 @@ const STATUS_LIST: StatusConfig[] = [
     name: 'Sakit',
     badgeBg: 'bg-sky-100 dark:bg-sky-950/60',
     badgeText: 'text-sky-800 dark:text-sky-300',
-    activeColor: 'bg-sky-600 text-white shadow-sm ring-2 ring-sky-400/80',
+    activeColor: 'bg-sky-600 text-white shadow-xs ring-2 ring-sky-400 font-black',
+    unselectedColor: 'bg-sky-50/80 text-sky-800 border border-sky-200/90 hover:bg-sky-100 font-bold',
     ringColor: 'border-sky-500',
   },
   {
@@ -62,7 +66,8 @@ const STATUS_LIST: StatusConfig[] = [
     name: 'Izin',
     badgeBg: 'bg-amber-100 dark:bg-amber-950/60',
     badgeText: 'text-amber-800 dark:text-amber-300',
-    activeColor: 'bg-amber-500 text-white shadow-sm ring-2 ring-amber-300/80',
+    activeColor: 'bg-amber-500 text-white shadow-xs ring-2 ring-amber-300 font-black',
+    unselectedColor: 'bg-amber-50/80 text-amber-800 border border-amber-200/90 hover:bg-amber-100 font-bold',
     ringColor: 'border-amber-500',
   },
   {
@@ -71,7 +76,8 @@ const STATUS_LIST: StatusConfig[] = [
     name: 'Alpa',
     badgeBg: 'bg-rose-100 dark:bg-rose-950/60',
     badgeText: 'text-rose-800 dark:text-rose-300',
-    activeColor: 'bg-rose-600 text-white shadow-sm ring-2 ring-rose-400/80',
+    activeColor: 'bg-rose-600 text-white shadow-xs ring-2 ring-rose-400 font-black',
+    unselectedColor: 'bg-rose-50/80 text-rose-800 border border-rose-200/90 hover:bg-rose-100 font-bold',
     ringColor: 'border-rose-500',
   },
   {
@@ -80,7 +86,8 @@ const STATUS_LIST: StatusConfig[] = [
     name: 'Terlambat',
     badgeBg: 'bg-purple-100 dark:bg-purple-950/60',
     badgeText: 'text-purple-800 dark:text-purple-300',
-    activeColor: 'bg-purple-600 text-white shadow-sm ring-2 ring-purple-400/80',
+    activeColor: 'bg-purple-600 text-white shadow-xs ring-2 ring-purple-400 font-black',
+    unselectedColor: 'bg-purple-50/80 text-purple-800 border border-purple-200/90 hover:bg-purple-100 font-bold',
     ringColor: 'border-purple-500',
   },
 ];
@@ -103,8 +110,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ db, role, 
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | StatusPresensi>('ALL');
 
-  // Default to table mode with frozen status column
-  const [viewMode, setViewMode] = useState<'card' | 'table'>('table');
+  // Default to compact mobile-first mode with H, S, I, A, T directly fitted with student name
+  const [viewMode, setViewMode] = useState<'compact' | 'table' | 'card'>('compact');
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' } | null>(null);
   const [editingNoteMuridId, setEditingNoteMuridId] = useState<string | null>(null);
 
@@ -408,20 +415,20 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ db, role, 
               Kehadiran: {persentase}%
             </span>
             
-            {/* View Mode Toggle */}
+            {/* View Mode Toggle: Ringkas HP, Tabel, Kartu */}
             <div className="inline-flex p-0.5 bg-slate-100 rounded-xl border border-slate-200 text-xs">
               <button
                 type="button"
-                onClick={() => setViewMode('card')}
+                onClick={() => setViewMode('compact')}
                 className={`px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 transition cursor-pointer ${
-                  viewMode === 'card'
-                    ? 'bg-white text-slate-900 shadow-2xs'
+                  viewMode === 'compact'
+                    ? 'bg-white text-blue-900 shadow-2xs'
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
-                title="Tampilan Kartu HP (Praktis di Ponsel)"
+                title="Tampilan Ringkas HP (Nama & Tombol H,S,I,A,T Pas di Layar HP)"
               >
-                <LayoutList className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Kartu HP</span>
+                <Smartphone className="w-3.5 h-3.5 text-blue-600" />
+                <span className="font-bold text-[11px] sm:text-xs">Ringkas HP</span>
               </button>
               <button
                 type="button"
@@ -431,10 +438,23 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ db, role, 
                     ? 'bg-white text-slate-900 shadow-2xs'
                     : 'text-slate-500 hover:text-slate-800'
                 }`}
-                title="Tampilan Tabel Ringkas"
+                title="Tampilan Tabel Lengkap"
               >
                 <TableIcon className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">Tabel</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('card')}
+                className={`px-2.5 py-1 rounded-lg font-bold flex items-center gap-1 transition cursor-pointer ${
+                  viewMode === 'card'
+                    ? 'bg-white text-slate-900 shadow-2xs'
+                    : 'text-slate-500 hover:text-slate-800'
+                }`}
+                title="Tampilan Kartu Rinci"
+              >
+                <LayoutList className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Kartu</span>
               </button>
             </div>
           </div>
@@ -537,7 +557,152 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ db, role, 
         </div>
       </div>
 
-      {/* VIEW MODE 1: KARTU HP (RESPONSIF MOBILE-FIRST) */}
+      {/* VIEW MODE 1: RINGKAS HP (ULTRA RESPONSIF - NAMA DAN TOMBOL H, S, I, A, T SEJAJAR PAS DI LAYAR HP) */}
+      {viewMode === 'compact' && (
+        <div className="space-y-2">
+          {/* Header Penjelas Ringkas & Keterangan Warna H, S, I, A, T */}
+          <div className="p-2.5 sm:p-3 bg-gradient-to-r from-blue-50 via-indigo-50 to-emerald-50/50 border border-blue-200/80 rounded-2xl flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="p-1 bg-blue-600 text-white rounded-lg">
+                <Smartphone className="w-3.5 h-3.5" />
+              </span>
+              <span className="font-extrabold text-blue-950 text-[11px] sm:text-xs">
+                Mode Ringkas HP: Ketuk langsung H, S, I, A, T pada setiap siswa
+              </span>
+            </div>
+            {/* Panduan Kode Huruf */}
+            <div className="flex items-center gap-1.5 font-bold text-[10px] flex-wrap">
+              <span className="text-emerald-800 bg-emerald-100/90 px-1.5 py-0.5 rounded">H = Hadir</span>
+              <span className="text-sky-800 bg-sky-100/90 px-1.5 py-0.5 rounded">S = Sakit</span>
+              <span className="text-amber-800 bg-amber-100/90 px-1.5 py-0.5 rounded">I = Izin</span>
+              <span className="text-rose-800 bg-rose-100/90 px-1.5 py-0.5 rounded">A = Alpa</span>
+              <span className="text-purple-800 bg-purple-100/90 px-1.5 py-0.5 rounded">T = Terlambat</span>
+            </div>
+          </div>
+
+          {filteredMurid.length === 0 ? (
+            <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-400 text-xs">
+              Tidak ada data siswa yang cocok dengan kriteria pencarian.
+            </div>
+          ) : (
+            filteredMurid.map((murid, idx) => {
+              const currentStatus = attendanceMap[murid.id] || 'H';
+              const currentNote = keteranganMap[murid.id] || DEFAULT_KETERANGAN[currentStatus];
+              const activeConfig = STATUS_LIST.find((s) => s.key === currentStatus);
+              const isEditingNote = editingNoteMuridId === murid.id;
+              const hasCustomNote = currentNote && currentNote !== DEFAULT_KETERANGAN[currentStatus];
+
+              return (
+                <div
+                  key={murid.id}
+                  className={`rounded-2xl p-2.5 sm:p-3 border transition-all ${
+                    currentStatus !== 'H'
+                      ? 'bg-amber-50/20 border-amber-200 shadow-2xs'
+                      : 'bg-white border-slate-200/90 shadow-2xs hover:border-slate-300'
+                  }`}
+                >
+                  {/* Baris Utama: Nama Siswa di Kiri, 5 Tombol H, S, I, A, T di Kanan */}
+                  <div className="flex items-center justify-between gap-1.5 sm:gap-2">
+                    {/* Sisi Kiri: Nomor + Nama Siswa Lengkap & NIS */}
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md sm:rounded-lg bg-slate-100 text-slate-600 font-mono font-black text-[10px] sm:text-xs flex items-center justify-center shrink-0">
+                        {idx + 1}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
+                          <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm leading-tight truncate">
+                            {murid.name}
+                          </h4>
+                          {currentStatus !== 'H' && (
+                            <span
+                              className={`text-[9px] font-black px-1.5 py-0.2 rounded-md ${activeConfig?.badgeBg} ${activeConfig?.badgeText} shrink-0`}
+                            >
+                              {activeConfig?.name}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-mono leading-none mt-0.5">
+                          <span>NIS: {murid.nis || '-'}</span>
+                          {murid.jenisKelamin && (
+                            <span>• {murid.jenisKelamin === 'P' ? 'P' : 'L'}</span>
+                          )}
+                          {hasCustomNote && (
+                            <span className="text-indigo-600 font-sans font-bold truncate max-w-[120px] sm:max-w-[200px]">
+                              • {currentNote}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Sisi Kanan: 5 Tombol H, S, I, A, T Pas di Ukuran Layar Ponsel */}
+                    <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+                      {STATUS_LIST.map((st) => {
+                        const isSelected = currentStatus === st.key;
+                        return (
+                          <button
+                            key={st.key}
+                            type="button"
+                            onClick={() => handleChangeStatus(murid.id, st.key)}
+                            className={`w-7.5 h-8 sm:w-9 sm:h-9 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center cursor-pointer active:scale-95 select-none ${
+                              isSelected
+                                ? `${st.activeColor} scale-[1.05]`
+                                : `${st.unselectedColor}`
+                            }`}
+                            title={`Tandai ${murid.name} sebagai ${st.name} (${st.code})`}
+                          >
+                            <span className="leading-none">{st.code}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Sub-baris Catatan: Muncul jika status bukan Hadir atau sedang diedit */}
+                  {(isEditingNote || (currentStatus !== 'H' && hasCustomNote)) && (
+                    <div className="mt-2 pt-1.5 border-t border-slate-100 flex items-center gap-1.5 text-xs">
+                      <span className="text-[10px] font-bold text-slate-500 shrink-0">Catatan:</span>
+                      <input
+                        type="text"
+                        value={currentNote}
+                        onChange={(e) => handleUpdateKeterangan(murid.id, e.target.value)}
+                        placeholder={`Keterangan ${activeConfig?.name || ''} (misal: Cedera, Demam, Lomba)...`}
+                        className="flex-1 py-1 px-2 text-[11px] bg-white border border-slate-200 rounded-lg focus:outline-hidden focus:border-blue-400 focus:ring-1 focus:ring-blue-100"
+                      />
+                      {isEditingNote && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingNoteMuridId(null)}
+                          className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-[10px] font-bold shrink-0 cursor-pointer"
+                        >
+                          Tutup
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Tombol Mini Catatan Jika Status Hadir / Belum Ada Catatan Khusus */}
+                  {!isEditingNote && !hasCustomNote && (
+                    <div className="flex justify-end pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => setEditingNoteMuridId(murid.id)}
+                        className="text-[9px] text-slate-400 hover:text-indigo-600 flex items-center gap-0.5 cursor-pointer"
+                        title="Tambah catatan khusus untuk siswa ini"
+                      >
+                        <MessageSquare className="w-2.5 h-2.5" />
+                        <span>+ catatan</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* VIEW MODE 2: KARTU RINCI DENGAN FOTO SISWA */}
       {viewMode === 'card' && (
         <div className="space-y-3">
           {filteredMurid.length === 0 ? (
@@ -624,7 +789,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ db, role, 
                             className={`py-2.5 sm:py-2 text-sm sm:text-base font-black rounded-xl transition-all flex flex-col items-center justify-center min-h-[44px] cursor-pointer ${
                               isSelected
                                 ? `${st.activeColor} scale-[1.02]`
-                                : 'bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 border border-slate-200'
+                                : `${st.unselectedColor}`
                             }`}
                             title={`Tandai ${murid.name} sebagai ${st.name} (${st.code})`}
                           >

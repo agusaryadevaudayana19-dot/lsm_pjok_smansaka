@@ -18,6 +18,11 @@ import {
   ArrowRight,
   ArrowLeft,
   Smartphone,
+  RotateCcw,
+  AlertTriangle,
+  MoveHorizontal,
+  WrapText,
+  SlidersHorizontal,
 } from 'lucide-react';
 import { PresensiRecord, StatusPresensi, User, UserRole } from '../../types';
 import { dataStorage, LMSDatabase } from '../../services/dataStorage';
@@ -112,12 +117,25 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ db, role, 
 
   // Default to compact mobile-first mode with H, S, I, A, T directly fitted with student name
   const [viewMode, setViewMode] = useState<'compact' | 'table' | 'card'>('compact');
+  // Mode tampilan nama murid pada hp: 'wrap' (semua nama utuh) atau 'scroll' (geser kanan kiri)
+  const [compactNameMode, setCompactNameMode] = useState<'wrap' | 'scroll'>('wrap');
+  const [showResetAbsensiModal, setShowResetAbsensiModal] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'info' } | null>(null);
   const [editingNoteMuridId, setEditingNoteMuridId] = useState<string | null>(null);
 
+  const selectedKelasObj = useMemo(() => {
+    return (db.kelas || []).find((k) => k.id === selectedKelasId);
+  }, [db.kelas, selectedKelasId]);
+
   const muridInKelas = useMemo(() => {
-    return db.users.filter((u) => u.role === 'MURID' && u.kelasId === selectedKelasId);
-  }, [db.users, selectedKelasId]);
+    const targetId = (selectedKelasId || '').toLowerCase().trim();
+    const targetNama = (selectedKelasObj?.nama || '').toLowerCase().trim();
+    return db.users.filter((u) => {
+      if (u.role !== 'MURID') return false;
+      const uKelas = (u.kelasId || '').toLowerCase().trim();
+      return uKelas === targetId || (targetNama && uKelas === targetNama);
+    });
+  }, [db.users, selectedKelasId, selectedKelasObj]);
 
   // Attendance and notes maps for selected date & class
   const getInitialStatus = (): Record<string, StatusPresensi> => {
@@ -274,7 +292,42 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ db, role, 
   const countT = Object.values(attendanceMap).filter((s) => s === 'T').length;
   const persentase = Math.round(((countH + countT) / total) * 100);
 
-  const selectedKelasObj = (db.kelas || []).find((k) => k.id === selectedKelasId);
+  const handleResetCurrentDatePresensi = () => {
+    dataStorage.updateDatabase((prev) => ({
+      ...prev,
+      presensi: (prev.presensi || []).filter(
+        (p) => !(p.kelasId === selectedKelasId && p.tanggal === selectedTanggal)
+      ),
+    }));
+    const newStatus: Record<string, StatusPresensi> = {};
+    const newNotes: Record<string, string> = {};
+    muridInKelas.forEach((m) => {
+      newStatus[m.id] = 'H';
+      newNotes[m.id] = DEFAULT_KETERANGAN['H'];
+    });
+    setAttendanceMap(newStatus);
+    setKeteranganMap(newNotes);
+    setShowResetAbsensiModal(false);
+    showToast(`Presensi tanggal ${selectedTanggal} berhasil dikosongkan ke nol.`, 'success');
+  };
+
+  const handleResetAllPresensi = () => {
+    dataStorage.updateDatabase((prev) => ({
+      ...prev,
+      presensi: [],
+      isNilaiPresensiReset: true,
+    }));
+    const newStatus: Record<string, StatusPresensi> = {};
+    const newNotes: Record<string, string> = {};
+    muridInKelas.forEach((m) => {
+      newStatus[m.id] = 'H';
+      newNotes[m.id] = DEFAULT_KETERANGAN['H'];
+    });
+    setAttendanceMap(newStatus);
+    setKeteranganMap(newNotes);
+    setShowResetAbsensiModal(false);
+    showToast('Seluruh riwayat presensi semua kelas berhasil dikosongkan ke nol!', 'success');
+  };
 
   return (
     <div className="space-y-4 pb-24 sm:pb-8">
@@ -317,11 +370,20 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ db, role, 
             </p>
           </div>
 
-          <div className="flex items-center gap-2 self-stretch sm:self-auto">
+          <div className="flex items-center gap-2 self-stretch sm:self-auto flex-wrap">
+            <button
+              type="button"
+              onClick={() => setShowResetAbsensiModal(true)}
+              className="flex-1 sm:flex-none px-3 py-2 text-xs font-bold text-rose-200 bg-rose-500/20 hover:bg-rose-500/30 active:bg-rose-500/40 border border-rose-400/30 rounded-xl transition flex items-center justify-center gap-1 cursor-pointer"
+              title="Kosongkan riwayat absensi untuk mulai dari nol"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset ke Nol</span>
+            </button>
             <button
               type="button"
               onClick={handleSetAllHadir}
-              className="flex-1 sm:flex-none px-3 py-2 text-xs font-bold text-blue-100 bg-white/10 hover:bg-white/20 active:bg-white/30 border border-white/20 rounded-xl transition text-center"
+              className="flex-1 sm:flex-none px-3 py-2 text-xs font-bold text-blue-100 bg-white/10 hover:bg-white/20 active:bg-white/30 border border-white/20 rounded-xl transition text-center cursor-pointer"
               title="Setel semua siswa menjadi Hadir (H)"
             >
               Semua Hadir (H)
@@ -329,7 +391,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ db, role, 
             <button
               type="button"
               onClick={handleSavePresensi}
-              className="flex-1 sm:flex-none px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition text-center"
+              className="flex-1 sm:flex-none px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 rounded-xl shadow-xs flex items-center justify-center gap-1.5 transition text-center cursor-pointer"
             >
               <Save className="w-3.5 h-3.5" />
               <span>Simpan</span>
@@ -559,24 +621,72 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ db, role, 
 
       {/* VIEW MODE 1: RINGKAS HP (ULTRA RESPONSIF - NAMA DAN TOMBOL H, S, I, A, T SEJAJAR PAS DI LAYAR HP) */}
       {viewMode === 'compact' && (
-        <div className="space-y-2">
-          {/* Header Penjelas Ringkas & Keterangan Warna H, S, I, A, T */}
-          <div className="p-2.5 sm:p-3 bg-gradient-to-r from-blue-50 via-indigo-50 to-emerald-50/50 border border-blue-200/80 rounded-2xl flex flex-wrap items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-2">
-              <span className="p-1 bg-blue-600 text-white rounded-lg">
-                <Smartphone className="w-3.5 h-3.5" />
-              </span>
-              <span className="font-extrabold text-blue-950 text-[11px] sm:text-xs">
-                Mode Ringkas HP: Ketuk langsung H, S, I, A, T pada setiap siswa
-              </span>
+        <div className="space-y-2.5">
+          {/* Bar Kontrol Pilihan Tampilan Nama: Tampilkan Semua Nama (Turun Baris) atau Geser Kanan-Kiri */}
+          <div className="p-3 bg-gradient-to-r from-blue-50 via-indigo-50/70 to-emerald-50/50 border border-blue-200/90 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs shadow-2xs">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2">
+                <span className="p-1 bg-blue-600 text-white rounded-lg shadow-2xs">
+                  <Smartphone className="w-3.5 h-3.5" />
+                </span>
+                <span className="font-black text-blue-950 text-xs">
+                  Tampilan Nama Murid di HP:
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-600 leading-snug">
+                {compactNameMode === 'wrap' ? (
+                  <>
+                    <strong className="text-blue-900">Mode Nama Utuh:</strong> Nama lengkap siswa ditampilkan seluruhnya (turun baris tanpa terpotong).
+                  </>
+                ) : (
+                  <>
+                    <strong className="text-indigo-900">Mode Geser Kanan-Kiri:</strong> Kolom nama lebar 1 baris &amp; baris dapat digeser kanan-kiri (↔).
+                  </>
+                )}
+              </p>
             </div>
-            {/* Panduan Kode Huruf */}
-            <div className="flex items-center gap-1.5 font-bold text-[10px] flex-wrap">
-              <span className="text-emerald-800 bg-emerald-100/90 px-1.5 py-0.5 rounded">H = Hadir</span>
-              <span className="text-sky-800 bg-sky-100/90 px-1.5 py-0.5 rounded">S = Sakit</span>
-              <span className="text-amber-800 bg-amber-100/90 px-1.5 py-0.5 rounded">I = Izin</span>
-              <span className="text-rose-800 bg-rose-100/90 px-1.5 py-0.5 rounded">A = Alpa</span>
-              <span className="text-purple-800 bg-purple-100/90 px-1.5 py-0.5 rounded">T = Terlambat</span>
+
+            {/* Toggle Tombol Pilihan Mode */}
+            <div className="flex items-center gap-1.5 p-1 bg-white/90 border border-blue-200 rounded-xl shrink-0 self-start sm:self-auto shadow-2xs">
+              <button
+                type="button"
+                onClick={() => setCompactNameMode('wrap')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
+                  compactNameMode === 'wrap'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+                title="Tampilkan seluruh nama siswa lengkap tanpa terpotong (turun baris)"
+              >
+                <WrapText className="w-3.5 h-3.5" />
+                <span>Nama Utuh</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCompactNameMode('scroll')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition cursor-pointer ${
+                  compactNameMode === 'scroll'
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+                title="Aktifkan geser kanan-kiri pada baris siswa"
+              >
+                <MoveHorizontal className="w-3.5 h-3.5" />
+                <span>Geser Kanan-Kiri (↔)</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Panduan Kode Huruf */}
+          <div className="px-3 py-2 bg-slate-100/90 border border-slate-200/80 rounded-xl flex items-center justify-between gap-2 text-[11px] font-bold flex-wrap">
+            <span className="text-slate-600 text-[10px] sm:text-xs">Panduan Tombol:</span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-md">H = Hadir</span>
+              <span className="text-sky-800 bg-sky-100/90 px-2 py-0.5 rounded-md">S = Sakit</span>
+              <span className="text-amber-800 bg-amber-100/90 px-2 py-0.5 rounded-md">I = Izin</span>
+              <span className="text-rose-800 bg-rose-100/90 px-2 py-0.5 rounded-md">A = Alpa</span>
+              <span className="text-purple-800 bg-purple-100/90 px-2 py-0.5 rounded-md">T = Telat</span>
             </div>
           </div>
 
@@ -601,60 +711,80 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ db, role, 
                       : 'bg-white border-slate-200/90 shadow-2xs hover:border-slate-300'
                   }`}
                 >
-                  {/* Baris Utama: Nama Siswa di Kiri, 5 Tombol H, S, I, A, T di Kanan */}
-                  <div className="flex items-center justify-between gap-1.5 sm:gap-2">
-                    {/* Sisi Kiri: Nomor + Nama Siswa Lengkap & NIS */}
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md sm:rounded-lg bg-slate-100 text-slate-600 font-mono font-black text-[10px] sm:text-xs flex items-center justify-center shrink-0">
-                        {idx + 1}
-                      </span>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5 flex-wrap sm:flex-nowrap">
-                          <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm leading-tight truncate">
-                            {murid.name}
-                          </h4>
-                          {currentStatus !== 'H' && (
-                            <span
-                              className={`text-[9px] font-black px-1.5 py-0.2 rounded-md ${activeConfig?.badgeBg} ${activeConfig?.badgeText} shrink-0`}
+                  {/* Kontainer Geser Kanan-Kiri (Horizontal Scrollable Container) */}
+                  <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-slate-300 pb-0.5 -mx-0.5 px-0.5 touch-pan-x">
+                    <div
+                      className={`flex items-center justify-between gap-2.5 ${
+                        compactNameMode === 'scroll'
+                          ? 'min-w-[430px] sm:min-w-0'
+                          : 'min-w-0 w-full'
+                      }`}
+                    >
+                      {/* Sisi Kiri: Nomor + Nama Siswa Lengkap & NIS */}
+                      <div
+                        className={`flex items-start sm:items-center gap-2 ${
+                          compactNameMode === 'scroll'
+                            ? 'min-w-[210px] sm:min-w-[260px] flex-1'
+                            : 'min-w-0 flex-1'
+                        }`}
+                      >
+                        <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-md sm:rounded-lg bg-slate-100 text-slate-700 font-mono font-black text-[10px] sm:text-xs flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+                          {idx + 1}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <h4
+                              className={`font-extrabold text-slate-900 text-xs sm:text-sm leading-snug ${
+                                compactNameMode === 'scroll'
+                                  ? 'whitespace-nowrap'
+                                  : 'break-words whitespace-normal'
+                              }`}
                             >
-                              {activeConfig?.name}
-                            </span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-mono leading-none mt-0.5">
-                          <span>NIS: {murid.nis || '-'}</span>
-                          {murid.jenisKelamin && (
-                            <span>• {murid.jenisKelamin === 'P' ? 'P' : 'L'}</span>
-                          )}
-                          {hasCustomNote && (
-                            <span className="text-indigo-600 font-sans font-bold truncate max-w-[120px] sm:max-w-[200px]">
-                              • {currentNote}
-                            </span>
-                          )}
+                              {murid.name}
+                            </h4>
+                            {currentStatus !== 'H' && (
+                              <span
+                                className={`text-[9px] font-black px-1.5 py-0.2 rounded-md ${activeConfig?.badgeBg} ${activeConfig?.badgeText} shrink-0`}
+                              >
+                                {activeConfig?.name}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 font-mono leading-none mt-0.5 flex-wrap">
+                            <span>NIS: {murid.nis || '-'}</span>
+                            {murid.jenisKelamin && (
+                              <span>• {murid.jenisKelamin === 'P' ? 'P' : 'L'}</span>
+                            )}
+                            {hasCustomNote && (
+                              <span className="text-indigo-600 font-sans font-bold break-words">
+                                • {currentNote}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Sisi Kanan: 5 Tombol H, S, I, A, T Pas di Ukuran Layar Ponsel */}
-                    <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
-                      {STATUS_LIST.map((st) => {
-                        const isSelected = currentStatus === st.key;
-                        return (
-                          <button
-                            key={st.key}
-                            type="button"
-                            onClick={() => handleChangeStatus(murid.id, st.key)}
-                            className={`w-7.5 h-8 sm:w-9 sm:h-9 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center cursor-pointer active:scale-95 select-none ${
-                              isSelected
-                                ? `${st.activeColor} scale-[1.05]`
-                                : `${st.unselectedColor}`
-                            }`}
-                            title={`Tandai ${murid.name} sebagai ${st.name} (${st.code})`}
-                          >
-                            <span className="leading-none">{st.code}</span>
-                          </button>
-                        );
-                      })}
+                      {/* Sisi Kanan: 5 Tombol H, S, I, A, T Pas di Ukuran Layar Ponsel */}
+                      <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+                        {STATUS_LIST.map((st) => {
+                          const isSelected = currentStatus === st.key;
+                          return (
+                            <button
+                              key={st.key}
+                              type="button"
+                              onClick={() => handleChangeStatus(murid.id, st.key)}
+                              className={`w-7.5 h-8 sm:w-9 sm:h-9 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center cursor-pointer active:scale-95 select-none ${
+                                isSelected
+                                  ? `${st.activeColor} scale-[1.05]`
+                                  : `${st.unselectedColor}`
+                              }`}
+                              title={`Tandai ${murid.name} sebagai ${st.name} (${st.code})`}
+                            >
+                              <span className="leading-none">{st.code}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
 
@@ -952,7 +1082,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ db, role, 
                                 className="w-7 h-7 rounded-full object-cover shrink-0 ring-1 ring-slate-200"
                               />
                               <div className="min-w-0">
-                                <span className="font-extrabold text-slate-900 block truncate">
+                                <span className="font-extrabold text-slate-900 block break-words whitespace-normal leading-snug">
                                   {murid.name}
                                 </span>
                                 <span className="text-[10px] text-slate-400 font-mono">
@@ -1087,6 +1217,81 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ db, role, 
           </div>
         </div>
       </div>
+
+      {/* MODAL KONFIRMASI RESET ABSENSI KE NOL */}
+      {showResetAbsensiModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-5 sm:p-6 max-w-md w-full shadow-2xl border border-slate-100 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900 leading-tight">
+                  Reset Absensi ke Nol
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Mulai pencatatan absensi dari kondisi bersih (nol).
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-2xl border border-slate-200">
+              Pilih cakupan reset yang Anda inginkan. Tindakan ini akan mengosongkan rekaman kehadiran dan menyetel kembali status siswa ke default.
+            </p>
+
+            <div className="space-y-2 pt-1">
+              {/* Opsi 1: Kosongkan Tanggal Ini Saja */}
+              <button
+                type="button"
+                onClick={handleResetCurrentDatePresensi}
+                className="w-full text-left p-3 rounded-2xl border border-amber-200 bg-amber-50/70 hover:bg-amber-100/80 transition group cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-amber-900 group-hover:text-amber-950">
+                    Kosongkan Tanggal Ini Saja
+                  </span>
+                  <span className="text-[10px] font-mono text-amber-700 bg-white/80 px-2 py-0.5 rounded-lg border border-amber-200">
+                    {selectedTanggal}
+                  </span>
+                </div>
+                <p className="text-[11px] text-amber-700 mt-1">
+                  Hapus rekaman kehadiran Kelas {selectedKelasObj?.nama || selectedKelasId} pada tanggal {selectedTanggal}.
+                </p>
+              </button>
+
+              {/* Opsi 2: Kosongkan Seluruh Riwayat Presensi Semua Kelas */}
+              <button
+                type="button"
+                onClick={handleResetAllPresensi}
+                className="w-full text-left p-3 rounded-2xl border border-rose-200 bg-rose-50/70 hover:bg-rose-100/80 transition group cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-rose-900 group-hover:text-rose-950">
+                    Kosongkan SEMUA Riwayat Absensi
+                  </span>
+                  <span className="text-[10px] font-mono text-rose-700 bg-white/80 px-2 py-0.5 rounded-lg border border-rose-200">
+                    Mulai dari Nol
+                  </span>
+                </div>
+                <p className="text-[11px] text-rose-700 mt-1">
+                  Hapus seluruh data presensi semua kelas dan tanggal untuk memulai tahun/semester baru dari nol.
+                </p>
+              </button>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowResetAbsensiModal(false)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-xl transition cursor-pointer"
+              >
+                Batal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

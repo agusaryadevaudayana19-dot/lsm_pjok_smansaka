@@ -55,6 +55,7 @@ export interface LMSDatabase {
   settings: PengaturanSekolah;
   isCleanSlate?: boolean;
   cleanSlateTimestamp?: string;
+  isNilaiPresensiReset?: boolean;
 }
 
 const STORAGE_KEY = 'lms_pjok_db_v2';
@@ -464,38 +465,7 @@ Zona Latihan Efektif: 65% - 85% dari DNM.`,
       dibuatOleh: 'Ratna Sartika, S.Pd.',
     },
   ],
-  pengumpulanTugas: [
-    {
-      id: 'sub-1',
-      tugasId: 'tug-1',
-      tugasJudul: 'Tugas Analisis Video Gerakan Passing Bawah Bola Voli',
-      muridId: 'usr-murid-1',
-      muridNama: 'Andi Pratama',
-      kelasId: 'cls-xi-1',
-      tanggalKumpul: '2026-09-04 14:30',
-      isiJawaban:
-        'Saya telah mengunggah rekaman video passing bawah di lapangan sekolah. Dari rekaman, saya memperhatikan posisi lutut sudah ditekuk stabil dan perkenaan pas di lengan bawah bagian dalam.',
-      fileUrl: 'https://drive.google.com/file/d/sample-video-passing-andi.mp4',
-      status: 'Dinilai',
-      nilai: 92,
-      komentarGuru:
-        'Luar biasa Andi! Sikap awal sangat seimbang dan perkenaan bola konsisten. Pertahankan koordinasi gerakannya.',
-    },
-    {
-      id: 'sub-2',
-      tugasId: 'tug-1',
-      tugasJudul: 'Tugas Analisis Video Gerakan Passing Bawah Bola Voli',
-      muridId: 'usr-murid-2',
-      muridNama: 'Budi Santoso',
-      kelasId: 'cls-xi-1',
-      tanggalKumpul: '2026-09-04 16:15',
-      isiJawaban:
-        'Video praktik passing bawah bersama rekan. Masih sedikit kaku saat bola datang terlalu cepat.',
-      fileUrl: 'https://drive.google.com/file/d/sample-budi.mp4',
-      status: 'Sudah Dikumpulkan',
-      komentarGuru: 'Menunggu review guru PJOK.',
-    },
-  ],
+  pengumpulanTugas: [],
   quiz: [
     {
       id: 'qz-1',
@@ -513,215 +483,9 @@ Zona Latihan Efektif: 65% - 85% dari DNM.`,
       soalList: DEFAULT_QUIZ_SOAL,
     },
   ],
-  jawabanQuiz: [
-    {
-      id: 'jwb-1',
-      quizId: 'qz-1',
-      quizJudul: 'Quiz Pengetahuan: Aturan & Variasi Gerak Bola Voli (AKM/HOTS)',
-      muridId: 'usr-murid-1',
-      muridNama: 'Andi Pratama',
-      kelasId: 'cls-xi-1',
-      tanggalMengerjakan: '2026-09-04 10:15',
-      nilai: 100,
-      jumlahBenar: 4,
-      jumlahSalah: 0,
-      jawabanMurid: {
-        'soal-1': 'Agar pantulan bola stabil dan arah lambungan mudah dikontrol ke arah setter',
-        'soal-2': 'Benar',
-        'soal-3': '3 kali',
-        'soal-4': 'Libero',
-      },
-      status: 'Selesai',
-    },
-  ],
-  penilaianPraktik: [
-    {
-      id: 'prk-1',
-      kelasId: 'cls-xi-1',
-      kelasNama: 'XI 1',
-      materi: 'Passing Bawah & Servis Mengapung Bola Voli',
-      materiJudul: 'Passing Bawah & Servis Mengapung Bola Voli',
-      muridId: 'usr-murid-1',
-      muridNama: 'Andi Pratama',
-      tanggal: '2026-09-04',
-      aspekNilai: {
-        sikapAwal: 4, // Sangat Berkembang
-        teknikGerakan: 4,
-        ketepatan: 3,
-        koordinasi: 4,
-        kerjaSama: 4,
-        sportivitas: 4,
-      },
-      rubrik: {
-        sikapAwal: 4,
-        pelaksanaanTeknik: 4,
-        sikapAkhir: 4,
-        hasilGerakan: 3,
-        sportivitas: 4,
-        kerjaSama: 4,
-      },
-      totalSkor: 23,
-      rataRata: 3.83,
-      nilaiAkhir: 96,
-      nilaiTotal: 96,
-      predikat: 'A',
-      catatanGuru: 'Gerakan sangat luwes, koordinasi tangan dan kaki harmonis. Mampu memimpin tim.',
-      catatanEvaluasi: 'Gerakan sangat luwes, koordinasi tangan dan kaki harmonis. Mampu memimpin tim.',
-      guruNama: 'Haryono, S.Pd.Jas',
-      guruPenilai: 'Haryono, S.Pd.Jas',
-    },
-    {
-      id: 'prk-2',
-      kelasId: 'cls-xi-1',
-      kelasNama: 'XI 1',
-      materi: 'Passing Bawah & Servis Mengapung Bola Voli',
-      materiJudul: 'Passing Bawah & Servis Mengapung Bola Voli',
-      muridId: 'usr-murid-2',
-      muridNama: 'Budi Santoso',
-      tanggal: '2026-09-04',
-      aspekNilai: {
-        sikapAwal: 3,
-        teknikGerakan: 3,
-        ketepatan: 3,
-        koordinasi: 3,
-        kerjaSama: 4,
-        sportivitas: 4,
-      },
-      rubrik: {
-        sikapAwal: 3,
-        pelaksanaanTeknik: 3,
-        sikapAkhir: 3,
-        hasilGerakan: 3,
-        sportivitas: 4,
-        kerjaSama: 4,
-      },
-      totalSkor: 20,
-      rataRata: 3.33,
-      nilaiAkhir: 83,
-      nilaiTotal: 83,
-      predikat: 'B',
-      catatanGuru: 'Sudah berkembang baik. Perbaiki kestabilan posisi telapak tangan.',
-      catatanEvaluasi: 'Sudah berkembang baik. Perbaiki kestabilan posisi telapak tangan.',
-      guruNama: 'Haryono, S.Pd.Jas',
-      guruPenilai: 'Haryono, S.Pd.Jas',
-    },
-    {
-      id: 'prk-3',
-      kelasId: 'cls-xi-1',
-      kelasNama: 'XI 1',
-      materi: 'Passing Bawah & Servis Mengapung Bola Voli',
-      materiJudul: 'Passing Bawah & Servis Mengapung Bola Voli',
-      muridId: 'usr-murid-3',
-      muridNama: 'Citra Dewi',
-      tanggal: '2026-09-04',
-      aspekNilai: {
-        sikapAwal: 4,
-        teknikGerakan: 4,
-        ketepatan: 4,
-        koordinasi: 3,
-        kerjaSama: 4,
-        sportivitas: 4,
-      },
-      rubrik: {
-        sikapAwal: 4,
-        pelaksanaanTeknik: 4,
-        sikapAkhir: 3,
-        hasilGerakan: 4,
-        sportivitas: 4,
-        kerjaSama: 4,
-      },
-      totalSkor: 23,
-      rataRata: 3.83,
-      nilaiAkhir: 96,
-      nilaiTotal: 96,
-      predikat: 'A',
-      catatanGuru: 'Akurasi passing atas dan bawah sangat baik.',
-      catatanEvaluasi: 'Akurasi passing atas dan bawah sangat baik.',
-      guruNama: 'Haryono, S.Pd.Jas',
-      guruPenilai: 'Haryono, S.Pd.Jas',
-    },
-  ],
-  presensi: [
-    {
-      id: 'pres-1',
-      tanggal: '2026-09-05',
-      kelasId: 'cls-xi-1',
-      kelasNama: 'XI 1',
-      muridId: 'usr-murid-1',
-      muridNama: 'Andi Pratama',
-      status: 'H',
-      guruId: 'usr-guru-1',
-      guruNama: 'Haryono, S.Pd.Jas',
-    },
-    {
-      id: 'pres-2',
-      tanggal: '2026-09-05',
-      kelasId: 'cls-xi-1',
-      kelasNama: 'XI 1',
-      muridId: 'usr-murid-2',
-      muridNama: 'Budi Santoso',
-      status: 'H',
-      guruId: 'usr-guru-1',
-      guruNama: 'Haryono, S.Pd.Jas',
-    },
-    {
-      id: 'pres-3',
-      tanggal: '2026-09-05',
-      kelasId: 'cls-xi-1',
-      kelasNama: 'XI 1',
-      muridId: 'usr-murid-3',
-      muridNama: 'Citra Dewi',
-      status: 'I',
-      keterangan: 'Lomba Paduan Suara Daerah',
-      guruId: 'usr-guru-1',
-      guruNama: 'Haryono, S.Pd.Jas',
-    },
-    {
-      id: 'pres-4',
-      tanggal: '2026-09-05',
-      kelasId: 'cls-xi-1',
-      kelasNama: 'XI 1',
-      muridId: 'usr-murid-4',
-      muridNama: 'Dewi Lestari',
-      status: 'S',
-      keterangan: 'Demam & Flu',
-      guruId: 'usr-guru-1',
-      guruNama: 'Haryono, S.Pd.Jas',
-    },
-    {
-      id: 'pres-5',
-      tanggal: '2026-09-04',
-      kelasId: 'cls-xi-1',
-      kelasNama: 'XI 1',
-      muridId: 'usr-murid-1',
-      muridNama: 'Andi Pratama',
-      status: 'H',
-      guruId: 'usr-guru-1',
-      guruNama: 'Haryono, S.Pd.Jas',
-    },
-    {
-      id: 'pres-6',
-      tanggal: '2026-09-03',
-      kelasId: 'cls-xi-1',
-      kelasNama: 'XI 1',
-      muridId: 'usr-murid-1',
-      muridNama: 'Andi Pratama',
-      status: 'H',
-      guruId: 'usr-guru-1',
-      guruNama: 'Haryono, S.Pd.Jas',
-    },
-    {
-      id: 'pres-7',
-      tanggal: '2026-09-02',
-      kelasId: 'cls-xi-1',
-      kelasNama: 'XI 1',
-      muridId: 'usr-murid-1',
-      muridNama: 'Andi Pratama',
-      status: 'H',
-      guruId: 'usr-guru-1',
-      guruNama: 'Haryono, S.Pd.Jas',
-    },
-  ],
+  jawabanQuiz: [],
+  penilaianPraktik: [],
+  presensi: [],
   jurnal: [
     {
       id: 'jrn-1',
@@ -776,7 +540,7 @@ Zona Latihan Efektif: 65% - 85% dari DNM.`,
       dibaca: true,
     },
   ],
-  nilai: DEFAULT_NILAI,
+  nilai: [],
 };
 
 export type FirestoreSyncStatus = 'connecting' | 'synced' | 'syncing' | 'offline' | 'error';
@@ -795,8 +559,48 @@ class DataStorageService {
 
   constructor() {
     this.db = this.loadFromLocalStorage();
+    // Reset nilai dan absensi ke nol sesuai permintaan user
+    if (!this.db.isNilaiPresensiReset) {
+      this.db.nilai = [];
+      this.db.presensi = [];
+      this.db.penilaianPraktik = [];
+      this.db.jawabanQuiz = [];
+      this.db.pengumpulanTugas = [];
+      this.db.isNilaiPresensiReset = true;
+      this.saveToLocalStorage(this.db);
+    }
     this.initFirestoreSync();
     this.loadSyncLogsFromStorage();
+  }
+
+  /**
+   * Mengosongkan seluruh rekap nilai (tugas, kuis, praktik) dan riwayat absensi
+   * Siswa, Guru, Kelas, Materi, dan Tugas tetap aman tersimpan.
+   */
+  public resetNilaiDanPresensi(notifyUser: boolean = true): void {
+    this.updateDatabase((prev) => ({
+      ...prev,
+      nilai: [],
+      presensi: [],
+      penilaianPraktik: [],
+      jawabanQuiz: [],
+      pengumpulanTugas: [],
+      isNilaiPresensiReset: true,
+      notifikasi: notifyUser
+        ? [
+            {
+              id: `notif-reset-nilai-${Date.now()}`,
+              judul: 'Nilai dan Absensi Direset ke Nol',
+              pesan: 'Seluruh rekap nilai dan riwayat absensi telah dikosongkan. Siap mulai mengisi dari nol.',
+              tipe: 'pengumuman',
+              waktu: 'Baru saja',
+              dibaca: false,
+            },
+            ...(prev.notifikasi || []),
+          ]
+        : prev.notifikasi,
+    }));
+    this.seedAllToFirestore();
   }
 
   private loadSyncLogsFromStorage() {
@@ -1138,15 +942,8 @@ class DataStorageService {
           }
         }
 
-        let loadedNilai = Array.isArray(parsed?.nilai) ? parsed.nilai : (isCleanSlate ? [] : INITIAL_DATABASE.nilai);
-        if (!isCleanSlate) {
-          const hasAccurateData = loadedUsers.some(
-            (u: any) => u.name === 'Gede Aditya Peratama' || u.name === 'I Ketut Agus Nova Anggarawan, S.Pd., Gr.'
-          );
-          if (!hasAccurateData || loadedNilai.length < 30) {
-            loadedNilai = INITIAL_DATABASE.nilai;
-          }
-        }
+        let loadedNilai = Array.isArray(parsed?.nilai) ? parsed.nilai : [];
+        let loadedPresensi = Array.isArray(parsed?.presensi) ? parsed.presensi : [];
 
         const primaryTeacher = 'I Ketut Agus Nova Anggarawan, S.Pd., Gr.';
 
@@ -1217,10 +1014,11 @@ class DataStorageService {
                 },
               })))
             : (isCleanSlate ? [] : INITIAL_DATABASE.penilaianPraktik),
-          presensi: Array.isArray(parsed?.presensi) ? parsed.presensi : (isCleanSlate ? [] : INITIAL_DATABASE.presensi),
+          presensi: loadedPresensi,
           jurnal: Array.isArray(parsed?.jurnal) ? parsed.jurnal : (isCleanSlate ? [] : INITIAL_DATABASE.jurnal),
           notifikasi: Array.isArray(parsed?.notifikasi) ? parsed.notifikasi : (isCleanSlate ? [] : INITIAL_DATABASE.notifikasi),
           nilai: loadedNilai,
+          isNilaiPresensiReset: parsed?.isNilaiPresensiReset ?? false,
         };
       }
     } catch (e) {

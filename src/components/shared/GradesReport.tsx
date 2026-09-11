@@ -8,9 +8,11 @@ import {
   Award,
   BookCheck,
   CheckCircle2,
+  RotateCcw,
+  AlertTriangle,
 } from 'lucide-react';
 import { User, NilaiItem } from '../../types';
-import { LMSDatabase } from '../../services/dataStorage';
+import { dataStorage, LMSDatabase } from '../../services/dataStorage';
 
 interface GradesReportProps {
   db: LMSDatabase;
@@ -19,24 +21,61 @@ interface GradesReportProps {
 }
 
 export const GradesReport: React.FC<GradesReportProps> = ({ db, currentUser, onOpenSheets }) => {
-  const [selectedKelasId, setSelectedKelasId] = useState<string>('cls-xi-1');
+  const [selectedKelasId, setSelectedKelasId] = useState<string>(
+    db.kelas.length > 0 ? db.kelas[0].id : 'cls-xi-1'
+  );
   const [selectedSemester, setSelectedSemester] = useState<string>('1 (Ganjil)');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [showResetConfirm, setShowResetConfirm] = useState<boolean>(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  const muridInKelas = db.users.filter((u) => u.role === 'MURID' && u.kelasId === selectedKelasId);
+  const selectedKelasObj = (db.kelas || []).find((k) => k.id === selectedKelasId);
 
-  // Match grades
+  const muridInKelas = db.users.filter((u) => {
+    if (u.role !== 'MURID') return false;
+    const uKelas = (u.kelasId || '').toLowerCase().trim();
+    const targetId = selectedKelasId.toLowerCase().trim();
+    const targetNama = (selectedKelasObj?.nama || '').toLowerCase().trim();
+    return uKelas === targetId || (targetNama && uKelas === targetNama);
+  });
+
+  // Match grades - start from 0 if no real assessment has taken place
   const gradesRows = muridInKelas.map((murid) => {
     const existing = (db.nilai || []).find((n) => n.muridId === murid.id);
     if (existing) {
       return { murid, nilai: existing };
     }
-    // Default preview calculation
-    const defTugas = 85;
-    const defQuiz = 80;
-    const defPraktik = 88;
-    const defSikap = 90;
-    const defAkhir = Math.round((defTugas + defQuiz + defPraktik + defSikap) / 4);
+
+    // Check if there are real assignment submissions, quizzes, or practical tests
+    const studentTugas = (db.pengumpulanTugas || []).filter(
+      (t) => t.muridId === murid.id && typeof t.nilai === 'number'
+    );
+    const avgTugas =
+      studentTugas.length > 0
+        ? Math.round(studentTugas.reduce((acc, t) => acc + (t.nilai || 0), 0) / studentTugas.length)
+        : 0;
+
+    const studentQuiz = (db.jawabanQuiz || []).filter(
+      (q) => q.muridId === murid.id && typeof q.nilai === 'number'
+    );
+    const avgQuiz =
+      studentQuiz.length > 0
+        ? Math.round(studentQuiz.reduce((acc, q) => acc + (q.nilai || 0), 0) / studentQuiz.length)
+        : 0;
+
+    const studentPraktik = (db.penilaianPraktik || []).filter(
+      (p) => p.muridId === murid.id && typeof (p.nilaiTotal ?? p.nilaiAkhir) === 'number'
+    );
+    const avgPraktik =
+      studentPraktik.length > 0
+        ? Math.round(
+            studentPraktik.reduce((acc, p) => acc + (p.nilaiTotal ?? p.nilaiAkhir ?? 0), 0) /
+              studentPraktik.length
+          )
+        : 0;
+
+    const hasAnyAssessment = studentTugas.length > 0 || studentQuiz.length > 0 || studentPraktik.length > 0;
+    const defAkhir = hasAnyAssessment ? Math.round((avgTugas + avgQuiz + avgPraktik) / 3) : 0;
 
     const fallbackNilai: NilaiItem = {
       id: `nil-${murid.id}`,
@@ -44,24 +83,29 @@ export const GradesReport: React.FC<GradesReportProps> = ({ db, currentUser, onO
       muridNama: murid.name,
       kelasId: selectedKelasId,
       semester: selectedSemester,
-      tugas: defTugas,
-      quiz: defQuiz,
-      praktik: defPraktik,
-      pengetahuan: Math.round((defTugas + defQuiz) / 2),
-      keterampilan: defPraktik,
-      sikap: defSikap,
+      tugas: avgTugas,
+      quiz: avgQuiz,
+      praktik: avgPraktik,
+      pengetahuan: hasAnyAssessment ? Math.round((avgTugas + avgQuiz) / 2) : 0,
+      keterampilan: avgPraktik,
+      sikap: hasAnyAssessment ? 85 : 0,
       nilaiAkhir: defAkhir,
-      predikat: defAkhir >= 90 ? 'A' : defAkhir >= 80 ? 'B' : 'C',
+      predikat: defAkhir >= 90 ? 'A' : defAkhir >= 80 ? 'B' : defAkhir >= 70 ? 'C' : defAkhir > 0 ? 'D' : '-',
     };
     return { murid, nilai: fallbackNilai };
   });
+
+  const handleResetNilai = () => {
+    dataStorage.resetNilaiDanPresensi();
+    setShowResetConfirm(false);
+    setToastMessage('Seluruh rekap nilai berhasil dikosongkan. Nilai dimulai dari nol!');
+    setTimeout(() => setToastMessage(null), 4000);
+  };
 
   const filteredRows = gradesRows.filter((r) =>
     r.murid.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     (r.murid.nis && r.murid.nis.includes(searchQuery))
   );
-
-  const selectedKelasObj = (db.kelas || []).find((k) => k.id === selectedKelasId);
 
   const handleExportCSV = () => {
     const headers = [
@@ -127,10 +171,20 @@ export const GradesReport: React.FC<GradesReportProps> = ({ db, currentUser, onO
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          {(currentUser.role === 'ADMIN' || currentUser.role === 'GURU') && (
+            <button
+              onClick={() => setShowResetConfirm(true)}
+              className="px-3 py-2 text-xs font-semibold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+              title="Reset seluruh rekap nilai ke nol"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>Reset Nilai ke Nol</span>
+            </button>
+          )}
           {currentUser.role === 'ADMIN' && onOpenSheets && (
             <button
               onClick={onOpenSheets}
-              className="px-3 py-2 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl flex items-center gap-1.5 shadow-2xs transition-colors"
+              className="px-3 py-2 text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
             >
               <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
               Google Sheets
@@ -138,20 +192,63 @@ export const GradesReport: React.FC<GradesReportProps> = ({ db, currentUser, onO
           )}
           <button
             onClick={handleExportCSV}
-            className="px-3 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-1.5 shadow-2xs transition-colors"
+            className="px-3 py-2 text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-200 rounded-xl flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
           >
             <Download className="w-4 h-4" />
             Export Excel (CSV)
           </button>
           <button
             onClick={handlePrint}
-            className="px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 rounded-xl flex items-center gap-1.5 shadow-xs transition-all"
+            className="px-4 py-2 text-xs font-bold text-white bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 rounded-xl flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
           >
             <Printer className="w-4 h-4" />
             Cetak Leger
           </button>
         </div>
       </div>
+
+      {toastMessage && (
+        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-xl text-xs font-semibold flex items-center gap-2 animate-fadeIn">
+          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Modal Konfirmasi Reset Nilai */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-100 animate-scaleUp">
+            <div className="flex items-center gap-3 text-rose-600 mb-3">
+              <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-rose-600" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900">Reset Nilai ke Nol?</h3>
+                <p className="text-xs text-slate-500">Mulai pembelajaran baru dari awal</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed mb-5">
+              Tindakan ini akan mengosongkan seluruh rekaman nilai (tugas, kuis, praktik, dan nilai akhir) serta riwayat absensi untuk memulai tahun ajaran dari nol. Data siswa, akun guru, kelas, materi, dan instrumen tugas tetap aman.
+            </p>
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(false)}
+                className="px-4 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-xl transition"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleResetNilai}
+                className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-xs transition"
+              >
+                Ya, Kosongkan Nilai ke Nol
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filter Bar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -236,7 +333,7 @@ export const GradesReport: React.FC<GradesReportProps> = ({ db, currentUser, onO
                 <tr key={row.murid.id} className="hover:bg-slate-50/60 transition-colors">
                   <td className="py-2.5 px-3 text-center font-bold text-slate-400">{idx + 1}</td>
                   <td className="py-2.5 px-3 font-mono text-[11px] text-slate-500">{row.murid.nis}</td>
-                  <td className="py-2.5 px-4 font-bold text-slate-800 truncate max-w-[180px]">
+                  <td className="py-2.5 px-4 font-bold text-slate-800 break-words whitespace-normal leading-snug min-w-[200px]">
                     {row.murid.name}
                   </td>
                   <td className="py-2.5 px-3 text-center font-semibold">{row.nilai.tugas}</td>

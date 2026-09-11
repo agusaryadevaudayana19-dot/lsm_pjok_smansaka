@@ -274,7 +274,7 @@ export interface RekapNilaiMurid {
   keterampilan: number;
   sikap: number;
   nilaiAkhir: number;
-  predikat: 'A' | 'B' | 'C' | 'D';
+  predikat: 'A' | 'B' | 'C' | 'D' | '-';
 }
 
 export type NilaiItem = RekapNilaiMurid;

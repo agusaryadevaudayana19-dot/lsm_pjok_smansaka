@@ -92,14 +92,46 @@ export const MateriManager: React.FC<MateriManagerProps> = ({ db, currentUser })
     return matchCat && matchQuery && matchKelas;
   });
 
+  const handleAddKolomKustom = () => {
+    const newCol = {
+      id: `col-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`,
+      label: '',
+      subJudul: '',
+      isi: '',
+    };
+    setForm((prev) => ({
+      ...prev,
+      kolomKustom: [...(prev.kolomKustom || []), newCol],
+    }));
+  };
+
+  const handleUpdateKolomKustom = (index: number, field: string, value: string) => {
+    setForm((prev) => {
+      const updated = [...(prev.kolomKustom || [])];
+      if (updated[index]) {
+        updated[index] = { ...updated[index], [field]: value };
+      }
+      return { ...prev, kolomKustom: updated };
+    });
+  };
+
+  const handleRemoveKolomKustom = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      kolomKustom: (prev.kolomKustom || []).filter((_, i) => i !== index),
+    }));
+  };
+
   const handleOpenAdd = () => {
     setEditingMateri(null);
     setForm({
       judul: '',
+      subJudul: '',
       kategori: 'Permainan Bola Besar',
       tujuanPembelajaran: '',
       deskripsi: '',
       materiInti: '',
+      kolomKustom: [],
       kelasIds: db.kelas.map((k) => k.id),
       videoUrl: '',
       fileUrl: '',
@@ -112,6 +144,8 @@ export const MateriManager: React.FC<MateriManagerProps> = ({ db, currentUser })
     setEditingMateri(m);
     setForm({
       ...m,
+      subJudul: m.subJudul || '',
+      kolomKustom: m.kolomKustom ? [...m.kolomKustom] : [],
       tujuanPembelajaran: m.tujuanPembelajaran || '',
       deskripsi: m.deskripsi || '',
       materiInti: m.materiInti || m.kontenTeks || m.konten || '',
@@ -128,6 +162,9 @@ export const MateriManager: React.FC<MateriManagerProps> = ({ db, currentUser })
     }
 
     const materiIntiText = form.materiInti || '';
+    const cleanKolomKustom = (form.kolomKustom || []).filter(
+      (col) => (col.label && col.label.trim()) || (col.isi && col.isi.trim())
+    );
 
     if (editingMateri) {
       dataStorage.updateDatabase((prev) => ({
@@ -137,6 +174,8 @@ export const MateriManager: React.FC<MateriManagerProps> = ({ db, currentUser })
             ? ({
                 ...m,
                 ...form,
+                subJudul: form.subJudul || '',
+                kolomKustom: cleanKolomKustom,
                 materiInti: materiIntiText,
                 kontenTeks: materiIntiText || m.kontenTeks,
                 dibuatPada: m.dibuatPada || new Date().toISOString().slice(0, 10),
@@ -148,11 +187,13 @@ export const MateriManager: React.FC<MateriManagerProps> = ({ db, currentUser })
       const newM: Materi = {
         id: `mat-${Date.now()}`,
         judul: form.judul || 'Materi Baru',
+        subJudul: form.subJudul || '',
         kategori: form.kategori || 'Permainan Bola Besar',
         tujuanPembelajaran: form.tujuanPembelajaran || '',
         deskripsi: form.deskripsi || '',
         materiInti: materiIntiText,
         kontenTeks: materiIntiText,
+        kolomKustom: cleanKolomKustom,
         kelasIds: form.kelasIds && form.kelasIds.length > 0 ? form.kelasIds : db.kelas.map((k) => k.id),
         status: form.status || 'Publish',
         videoUrl: form.videoUrl || '',
@@ -349,6 +390,11 @@ export const MateriManager: React.FC<MateriManagerProps> = ({ db, currentUser })
                     <h3 className="font-extrabold text-base text-slate-800 leading-snug">
                       {m.judul}
                     </h3>
+                    {m.subJudul && (
+                      <p className="text-xs font-bold text-emerald-700 mt-0.5">
+                        {m.subJudul}
+                      </p>
+                    )}
                   </div>
 
                   {/* 1. Capaian & Tujuan Pembelajaran (Paling di atas) */}
@@ -381,6 +427,28 @@ export const MateriManager: React.FC<MateriManagerProps> = ({ db, currentUser })
                       <p className="leading-relaxed text-indigo-900/80 line-clamp-2">
                         {materiIntiText.replace(/###|\*\*|#/g, '')}
                       </p>
+                    </div>
+                  )}
+
+                  {/* 4. Kolom & Sub-Materi Tambahan jika ada */}
+                  {m.kolomKustom && m.kolomKustom.length > 0 && (
+                    <div className="p-2.5 bg-amber-50/60 rounded-xl border border-amber-200/80 text-[11px] text-amber-950 space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px] font-bold text-amber-900">
+                        <span className="flex items-center gap-1">
+                          <Layers className="w-3.5 h-3.5 text-amber-600" />
+                          <span>{m.kolomKustom.length} Kolom / Sub-Materi Tambahan</span>
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {m.kolomKustom.map((col, idx) => (
+                          <span
+                            key={col.id || idx}
+                            className="px-2 py-0.5 bg-white border border-amber-200 rounded-md text-[10px] font-semibold text-amber-900"
+                          >
+                            {col.label} {col.subJudul ? `• ${col.subJudul}` : ''}
+                          </span>
+                        ))}
+                      </div>
                     </div>
                   )}
 
@@ -477,6 +545,11 @@ export const MateriManager: React.FC<MateriManagerProps> = ({ db, currentUser })
                 <h3 className="text-base sm:text-lg font-black text-slate-800 mt-2">
                   {previewDetailMateri.judul}
                 </h3>
+                {previewDetailMateri.subJudul && (
+                  <p className="text-xs font-bold text-emerald-700 mt-0.5">
+                    {previewDetailMateri.subJudul}
+                  </p>
+                )}
                 <p className="text-[11px] text-slate-400 mt-0.5">
                   Pengampu: {previewDetailMateri.guruNama || previewDetailMateri.dibuatOleh || currentUser.name}
                 </p>
@@ -531,6 +604,31 @@ export const MateriManager: React.FC<MateriManagerProps> = ({ db, currentUser })
                   </div>
                   <div className="pl-8 text-xs text-slate-700 leading-relaxed space-y-2 whitespace-pre-line font-normal">
                     {previewDetailMateri.materiInti || previewDetailMateri.kontenTeks || previewDetailMateri.konten}
+                  </div>
+                </div>
+              )}
+
+              {/* 4. Kolom & Sub-Materi Tambahan jika ada */}
+              {previewDetailMateri.kolomKustom && previewDetailMateri.kolomKustom.length > 0 && (
+                <div className="p-4 bg-amber-50/70 rounded-2xl border border-amber-200/80 shadow-2xs space-y-3">
+                  <div className="flex items-center gap-2 text-amber-900 font-extrabold text-xs uppercase tracking-wider">
+                    <div className="w-6 h-6 rounded-lg bg-amber-600 text-white flex items-center justify-center shrink-0">
+                      <Layers className="w-3.5 h-3.5" />
+                    </div>
+                    <span>4. Kolom & Sub-Materi Tambahan</span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pl-8">
+                    {previewDetailMateri.kolomKustom.map((kolom, i) => (
+                      <div key={kolom.id || i} className="p-3 bg-white rounded-xl border border-amber-200 shadow-2xs space-y-1">
+                        <h5 className="font-extrabold text-xs text-amber-950">{kolom.label}</h5>
+                        {kolom.subJudul && (
+                          <p className="text-[11px] font-bold text-amber-800">{kolom.subJudul}</p>
+                        )}
+                        <p className="text-xs text-slate-700 whitespace-pre-line leading-relaxed mt-1">
+                          {kolom.isi}
+                        </p>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
@@ -596,16 +694,28 @@ export const MateriManager: React.FC<MateriManagerProps> = ({ db, currentUser })
             </div>
 
             <form onSubmit={handleSave} className="flex-1 overflow-y-auto pr-1 space-y-4 text-xs">
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">Judul Materi PJOK *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Misal: Teknik Dasar & Variasi Passing Bawah Bola Voli"
-                  value={form.judul || ''}
-                  onChange={(e) => setForm({ ...form, judul: e.target.value })}
-                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 text-xs"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Judul Materi PJOK *</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Misal: Permainan Bola Voli"
+                    value={form.judul || ''}
+                    onChange={(e) => setForm({ ...form, judul: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 text-xs"
+                  />
+                </div>
+                <div>
+                  <label className="block font-bold text-slate-700 mb-1">Sub Judul Materi PJOK (Opsional)</label>
+                  <input
+                    type="text"
+                    placeholder="Misal: Teknik Dasar & Variasi Passing Bawah & Atas"
+                    value={form.subJudul || ''}
+                    onChange={(e) => setForm({ ...form, subJudul: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-emerald-500/20 text-xs"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -723,6 +833,96 @@ export const MateriManager: React.FC<MateriManagerProps> = ({ db, currentUser })
                   onChange={(e) => setForm({ ...form, materiInti: e.target.value })}
                   className="w-full px-3 py-2 bg-white border border-indigo-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 font-sans text-xs leading-relaxed"
                 />
+              </div>
+
+              {/* 4. Kolom & Sub-Materi Tambahan Sesuai Keinginan Guru */}
+              <div className="p-3.5 bg-amber-50/60 rounded-2xl border border-amber-200/80 space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div>
+                    <label className="flex items-center gap-1.5 font-extrabold text-amber-950 text-xs">
+                      <Layers className="w-4 h-4 text-amber-600" />
+                      <span>4. Tambah Kolom & Sub-Materi Tambahan (Sesuai Keinginan Guru)</span>
+                    </label>
+                    <p className="text-[10px] text-amber-800 mt-0.5">
+                      Jika materi banyak, guru dapat menambahkan kolom baru lengkap dengan judul, sub judul, dan uraian materinya.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleAddKolomKustom}
+                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-[11px] flex items-center gap-1.5 shadow-xs transition cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Tambah Kolom</span>
+                  </button>
+                </div>
+
+                {(!form.kolomKustom || form.kolomKustom.length === 0) ? (
+                  <div className="text-center p-3 bg-white/80 border border-dashed border-amber-300 rounded-xl text-amber-800 text-[11px]">
+                    Belum ada kolom materi tambahan. Klik tombol <strong>+ Tambah Kolom</strong> di atas jika materi memiliki banyak sub-pokok bahasan.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {form.kolomKustom.map((kolom, idx) => (
+                      <div key={kolom.id || idx} className="p-3 bg-white rounded-xl border border-amber-200 shadow-2xs space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-amber-950 text-[11px] flex items-center gap-1">
+                            <span className="w-4 h-4 rounded-full bg-amber-100 text-amber-800 inline-flex items-center justify-center text-[10px]">
+                              {idx + 1}
+                            </span>
+                            <span>Kolom Tambahan #{idx + 1}</span>
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveKolomKustom(idx)}
+                            className="p-1 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition"
+                            title="Hapus Kolom Ini"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          <div>
+                            <label className="block font-semibold text-slate-700 text-[10px] mb-0.5">
+                              Judul Kolom / Sub-Materi *
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Misal: Pola Gerak Kaki (Footwork)"
+                              value={kolom.label || ''}
+                              onChange={(e) => handleUpdateKolomKustom(idx, 'label', e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                            />
+                          </div>
+                          <div>
+                            <label className="block font-semibold text-slate-700 text-[10px] mb-0.5">
+                              Sub Judul Kolom (Opsional)
+                            </label>
+                            <input
+                              type="text"
+                              placeholder="Misal: Pergeseran Posisi Lapangan Depan & Belakang"
+                              value={kolom.subJudul || ''}
+                              onChange={(e) => handleUpdateKolomKustom(idx, 'subJudul', e.target.value)}
+                              className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block font-semibold text-slate-700 text-[10px] mb-0.5">
+                            Isi Uraian / Penjelasan Materi Kolom *
+                          </label>
+                          <textarea
+                            rows={2}
+                            placeholder="Jelaskan detail instruksi, langkah-langkah gerak, atau ringkasan materi..."
+                            value={kolom.isi || ''}
+                            onChange={(e) => handleUpdateKolomKustom(idx, 'isi', e.target.value)}
+                            className="w-full px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Links: Video & Document */}

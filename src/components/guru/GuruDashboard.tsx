@@ -321,10 +321,18 @@ export const GuruDashboard: React.FC<GuruDashboardProps> = ({ db, currentUser, o
             <button
               type="button"
               onClick={() => onNavigate('presensi')}
+              className="px-3 py-2 text-xs font-bold text-teal-800 bg-teal-50 hover:bg-teal-100 border border-teal-200 rounded-xl shadow-2xs flex items-center gap-1.5 transition cursor-pointer"
+            >
+              <CalendarCheck className="w-3.5 h-3.5 text-teal-600" />
+              <span>Input Presensi</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onNavigate('rekap-absensi')}
               className="px-3 py-2 text-xs font-bold text-white bg-teal-700 hover:bg-teal-600 active:bg-teal-800 rounded-xl shadow-2xs flex items-center gap-1.5 transition cursor-pointer"
             >
-              <CalendarCheck className="w-3.5 h-3.5" />
-              <span>Kelola Presensi</span>
+              <TableIcon className="w-3.5 h-3.5" />
+              <span>Rekapan Absensi</span>
             </button>
           </div>
         </div>

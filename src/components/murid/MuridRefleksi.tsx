@@ -44,6 +44,8 @@ export const MuridRefleksi: React.FC<MuridRefleksiProps> = ({ db, currentUser })
     const studentKelasNama = (studentKelasObj?.nama || '').toLowerCase().trim();
 
     return (db.refleksi || []).filter((r) => {
+      // Must not be draft
+      if (r.status === 'Draft' || r.statusPublikasi === 'Draft') return false;
       if (!r.kelasId || r.kelasId === 'ALL') return true;
       const rKelas = r.kelasId.toLowerCase().trim();
       return rKelas === studentKelas || (studentKelasNama && rKelas === studentKelasNama);
@@ -227,9 +229,16 @@ export const MuridRefleksi: React.FC<MuridRefleksiProps> = ({ db, currentUser })
                         )}
                       </div>
 
-                      <h4 className="text-base font-extrabold text-slate-900 leading-snug">
-                        {refleksi.judul}
-                      </h4>
+                      <div>
+                        <h4 className="text-base font-extrabold text-slate-900 leading-snug">
+                          {refleksi.judul}
+                        </h4>
+                        {refleksi.subJudul && (
+                          <p className="text-xs text-teal-700 font-bold mt-0.5">
+                            {refleksi.subJudul}
+                          </p>
+                        )}
+                      </div>
 
                       {refleksi.deskripsi && (
                         <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
@@ -301,9 +310,16 @@ export const MuridRefleksi: React.FC<MuridRefleksiProps> = ({ db, currentUser })
                   </span>
                 </div>
 
-                <h3 className="text-xl sm:text-2xl font-black text-slate-900">
-                  {activeRefleksi.judul}
-                </h3>
+                <div>
+                  <h3 className="text-xl sm:text-2xl font-black text-slate-900">
+                    {activeRefleksi.judul}
+                  </h3>
+                  {activeRefleksi.subJudul && (
+                    <p className="text-sm text-teal-700 font-bold mt-1">
+                      {activeRefleksi.subJudul}
+                    </p>
+                  )}
+                </div>
 
                 {activeRefleksi.deskripsi && (
                   <p className="text-xs sm:text-sm text-slate-600 leading-relaxed bg-slate-50 p-4 rounded-2xl border border-slate-100">

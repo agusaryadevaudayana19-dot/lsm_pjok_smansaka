@@ -54,7 +54,8 @@ export const MuridTugas: React.FC<MuridTugasProps> = ({ db, currentUser }) => {
   };
 
   const filteredTugas = db.tugas.filter((t) => {
-    if (t.status !== 'Publish') return false;
+    if (t.status === 'Draft' || t.statusPublikasi === 'Draft') return false;
+    if (t.status !== 'Publish' && t.status !== 'Aktif' && t.statusPublikasi !== 'Publish') return false;
     const st = getTugasStatus(t.id);
     if (filterStatus === 'semua') return true;
     return st === filterStatus;
@@ -171,6 +172,9 @@ export const MuridTugas: React.FC<MuridTugasProps> = ({ db, currentUser }) => {
                     </div>
 
                     <h3 className="font-extrabold text-base text-slate-800">{t.judul}</h3>
+                    {t.subJudul && (
+                      <p className="text-xs text-emerald-700 font-bold mt-0.5">{t.subJudul}</p>
+                    )}
                     <p className="text-xs text-slate-600 mt-1 leading-relaxed">{t.instruksi}</p>
                   </div>
 

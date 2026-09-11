@@ -20,6 +20,7 @@ import {
   Frown,
   Eye,
   FileSpreadsheet,
+  Clock,
 } from 'lucide-react';
 import { LMSDatabase, dataStorage } from '../../services/dataStorage';
 import {
@@ -37,12 +38,15 @@ interface GuruRefleksiProps {
 export const GuruRefleksi: React.FC<GuruRefleksiProps> = ({ db, currentUser }) => {
   const [activeTab, setActiveTab] = useState<'daftar' | 'respon'>('daftar');
   const [selectedKelasId, setSelectedKelasId] = useState<string>('ALL');
+  const [filterPublikasi, setFilterPublikasi] = useState<'Semua' | 'Publish' | 'Draft'>('Semua');
   const [selectedRefleksiId, setSelectedRefleksiId] = useState<string | null>(null);
 
   // Modal State for New/Edit Refleksi
   const [showModal, setShowModal] = useState<boolean>(false);
   const [editingRefleksiId, setEditingRefleksiId] = useState<string | null>(null);
   const [formJudul, setFormJudul] = useState<string>('');
+  const [formSubJudul, setFormSubJudul] = useState<string>('');
+  const [formStatusPublikasi, setFormStatusPublikasi] = useState<'Publish' | 'Draft'>('Publish');
   const [formMateriJudul, setFormMateriJudul] = useState<string>('');
   const [formKelasId, setFormKelasId] = useState<string>('ALL');
   const [formDeskripsi, setFormDeskripsi] = useState<string>('');
@@ -56,10 +60,29 @@ export const GuruRefleksi: React.FC<GuruRefleksiProps> = ({ db, currentUser }) =
   // Filtered refleksi list
   const refleksiList = useMemo(() => {
     return (db.refleksi || []).filter((r) => {
-      if (selectedKelasId === 'ALL') return true;
-      return r.kelasId === selectedKelasId || r.kelasId === 'ALL';
+      const matchKelas = selectedKelasId === 'ALL' || r.kelasId === selectedKelasId || r.kelasId === 'ALL';
+      const isDraft = r.status === 'Draft' || r.statusPublikasi === 'Draft';
+      const matchPublikasi =
+        filterPublikasi === 'Semua' ||
+        (filterPublikasi === 'Draft' && isDraft) ||
+        (filterPublikasi === 'Publish' && !isDraft);
+      return matchKelas && matchPublikasi;
     });
-  }, [db.refleksi, selectedKelasId]);
+  }, [db.refleksi, selectedKelasId, filterPublikasi]);
+
+  const handleTogglePublikasi = (r: RefleksiPembelajaran) => {
+    const isDraft = r.status === 'Draft' || r.statusPublikasi === 'Draft';
+    const newStatus = isDraft ? 'Aktif' : 'Draft';
+    const newPublikasi = isDraft ? 'Publish' : 'Draft';
+    const updated: RefleksiPembelajaran = {
+      ...r,
+      status: newStatus as any,
+      statusPublikasi: newPublikasi as any,
+    };
+    dataStorage.saveRefleksi(updated);
+    setToastMessage(`Status refleksi diubah menjadi ${newPublikasi === 'Publish' ? 'Diterbitkan' : 'Draft'}`);
+    setTimeout(() => setToastMessage(null), 3000);
+  };
 
   // Active refleksi for viewing responses
   const currentRefleksi = useMemo(() => {
@@ -138,10 +161,24 @@ export const GuruRefleksi: React.FC<GuruRefleksiProps> = ({ db, currentUser }) =
   const handleOpenNewModal = () => {
     setEditingRefleksiId(null);
     setFormJudul('');
+    setFormSubJudul('');
+    setFormStatusPublikasi('Publish');
     setFormMateriJudul('');
     setFormKelasId('ALL');
     setFormDeskripsi('Isilah refleksi pembelajaran ini secara jujur untuk membantu gurumu memahami kendala dan perkembangan belajarmu.');
     handleLoadTemplate();
+    setShowModal(true);
+  };
+
+  const handleOpenEditModal = (r: RefleksiPembelajaran) => {
+    setEditingRefleksiId(r.id);
+    setFormJudul(r.judul);
+    setFormSubJudul(r.subJudul || '');
+    setFormStatusPublikasi(r.status === 'Draft' || r.statusPublikasi === 'Draft' ? 'Draft' : 'Publish');
+    setFormMateriJudul(r.materiJudul || '');
+    setFormKelasId(r.kelasId || 'ALL');
+    setFormDeskripsi(r.deskripsi || '');
+    setFormSoalList(r.soalList || []);
     setShowModal(true);
   };
 
@@ -175,20 +212,26 @@ export const GuruRefleksi: React.FC<GuruRefleksiProps> = ({ db, currentUser }) =
     const item: RefleksiPembelajaran = {
       id: editingRefleksiId || `refl-${Date.now()}`,
       judul: formJudul,
+      subJudul: formSubJudul,
       materiJudul: formMateriJudul || 'PJOK',
       guruId: currentUser.id,
       guruNama: currentUser.name,
       kelasId: formKelasId,
       tanggalDibuat: new Date().toISOString().slice(0, 10),
       deskripsi: formDeskripsi,
-      status: 'Aktif',
+      status: formStatusPublikasi === 'Draft' ? 'Draft' : 'Aktif',
+      statusPublikasi: formStatusPublikasi,
       soalList: formSoalList,
     };
 
     dataStorage.saveRefleksi(item);
     setShowModal(false);
     setSelectedRefleksiId(item.id);
-    setToastMessage('Soal refleksi pembelajaran berhasil disimpan dan diterbitkan untuk siswa!');
+    setToastMessage(
+      formStatusPublikasi === 'Draft'
+        ? 'Refleksi pembelajaran berhasil disimpan sebagai Draft.'
+        : 'Soal refleksi pembelajaran berhasil disimpan dan diterbitkan untuk siswa!'
+    );
     setTimeout(() => setToastMessage(null), 4000);
   };
 
@@ -306,22 +349,37 @@ export const GuruRefleksi: React.FC<GuruRefleksiProps> = ({ db, currentUser }) =
             </button>
           </div>
 
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-teal-200 font-medium">Filter Kelas:</span>
-            <select
-              value={selectedKelasId}
-              onChange={(e) => setSelectedKelasId(e.target.value)}
-              className="text-xs font-bold bg-white/10 border border-white/20 text-white rounded-xl px-3 py-1.5 focus:outline-hidden focus:bg-slate-900 cursor-pointer"
-            >
-              <option value="ALL" className="bg-slate-900 text-white">
-                Semua Kelas
-              </option>
-              {db.kelas.map((k) => (
-                <option key={k.id} value={k.id} className="bg-slate-900 text-white">
-                  Kelas {k.nama}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-teal-200 font-medium">Status:</span>
+              <select
+                value={filterPublikasi}
+                onChange={(e) => setFilterPublikasi(e.target.value as any)}
+                className="text-xs font-bold bg-white/10 border border-white/20 text-white rounded-xl px-3 py-1.5 focus:outline-hidden focus:bg-slate-900 cursor-pointer"
+              >
+                <option value="Semua" className="bg-slate-900 text-white">Semua Status</option>
+                <option value="Publish" className="bg-slate-900 text-white">🟢 Diterbitkan</option>
+                <option value="Draft" className="bg-slate-900 text-white">🟡 Draft</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-teal-200 font-medium">Filter Kelas:</span>
+              <select
+                value={selectedKelasId}
+                onChange={(e) => setSelectedKelasId(e.target.value)}
+                className="text-xs font-bold bg-white/10 border border-white/20 text-white rounded-xl px-3 py-1.5 focus:outline-hidden focus:bg-slate-900 cursor-pointer"
+              >
+                <option value="ALL" className="bg-slate-900 text-white">
+                  Semua Kelas
                 </option>
-              ))}
-            </select>
+                {db.kelas.map((k) => (
+                  <option key={k.id} value={k.id} className="bg-slate-900 text-white">
+                    Kelas {k.nama}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
       </div>
@@ -355,25 +413,48 @@ export const GuruRefleksi: React.FC<GuruRefleksiProps> = ({ db, currentUser }) =
                 const responses = (db.jawabanRefleksi || []).filter(
                   (j) => j.refleksiId === refleksi.id
                 );
+                const isDraft = refleksi.status === 'Draft' || refleksi.statusPublikasi === 'Draft';
 
                 return (
                   <div
                     key={refleksi.id}
-                    className="bg-white rounded-2xl sm:rounded-3xl p-5 border border-slate-200 shadow-xs hover:shadow-md transition flex flex-col justify-between gap-4"
+                    className={`bg-white rounded-2xl sm:rounded-3xl p-5 border shadow-xs hover:shadow-md transition flex flex-col justify-between gap-4 ${
+                      isDraft ? 'border-amber-200 bg-amber-50/10' : 'border-slate-200'
+                    }`}
                   >
                     <div className="space-y-2">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-200">
-                          {refleksi.materiJudul || 'PJOK'}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 text-teal-700 border border-teal-200">
+                            {refleksi.materiJudul || 'PJOK'}
+                          </span>
+                          {!isDraft ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              Terbit
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-800 border border-amber-300 flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-amber-600" />
+                              Draft
+                            </span>
+                          )}
+                        </div>
                         <span className="text-[11px] text-slate-400 font-mono">
                           {refleksi.tanggalDibuat}
                         </span>
                       </div>
 
-                      <h4 className="text-base font-black text-slate-900 leading-snug">
-                        {refleksi.judul}
-                      </h4>
+                      <div>
+                        <h4 className="text-base font-black text-slate-900 leading-snug">
+                          {refleksi.judul}
+                        </h4>
+                        {refleksi.subJudul && (
+                          <p className="text-xs text-teal-700 font-bold mt-0.5">
+                            {refleksi.subJudul}
+                          </p>
+                        )}
+                      </div>
 
                       {refleksi.deskripsi && (
                         <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">
@@ -398,25 +479,48 @@ export const GuruRefleksi: React.FC<GuruRefleksiProps> = ({ db, currentUser }) =
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
+                    <div className="flex items-center gap-1.5 pt-2 border-t border-slate-100">
+                      <button
+                        type="button"
+                        onClick={() => handleTogglePublikasi(refleksi)}
+                        className={`px-2 py-1.5 text-[10px] font-bold rounded-xl border transition ${
+                          isDraft
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
+                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-amber-50 hover:text-amber-700'
+                        }`}
+                        title={isDraft ? 'Terbitkan ke akun murid' : 'Kembalikan ke status draf'}
+                      >
+                        {isDraft ? 'Terbitkan' : 'Draft'}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleOpenEditModal(refleksi)}
+                        className="p-1.5 text-slate-400 hover:text-teal-600 hover:bg-teal-50 rounded-xl transition cursor-pointer"
+                        title="Edit Soal Refleksi"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </button>
+
                       <button
                         type="button"
                         onClick={() => {
                           setSelectedRefleksiId(refleksi.id);
                           setActiveTab('respon');
                         }}
-                        className="flex-1 py-2 px-3 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer"
+                        className="flex-1 py-1.5 px-2.5 bg-teal-50 hover:bg-teal-100 text-teal-800 rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 cursor-pointer"
                       >
                         <Eye className="w-3.5 h-3.5" />
-                        <span>Lihat Jawaban ({responses.length})</span>
+                        <span>Jawaban ({responses.length})</span>
                       </button>
+
                       <button
                         type="button"
                         onClick={() => handleDeleteRefleksi(refleksi.id)}
-                        className="p-2 text-rose-500 hover:bg-rose-50 rounded-xl transition cursor-pointer"
+                        className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-xl transition cursor-pointer"
                         title="Hapus Soal Refleksi"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
@@ -608,7 +712,7 @@ export const GuruRefleksi: React.FC<GuruRefleksiProps> = ({ db, currentUser }) =
                   Formulir Soal Refleksi
                 </span>
                 <h3 className="text-lg sm:text-xl font-black text-slate-900 mt-1">
-                  Buat Soal Refleksi Pembelajaran Baru
+                  {editingRefleksiId ? 'Edit Soal Refleksi Pembelajaran' : 'Buat Soal Refleksi Pembelajaran Baru'}
                 </h3>
               </div>
               <button
@@ -629,20 +733,63 @@ export const GuruRefleksi: React.FC<GuruRefleksiProps> = ({ db, currentUser }) =
                     required
                     value={formJudul}
                     onChange={(e) => setFormJudul(e.target.value)}
-                    placeholder="Contoh: Refleksi Bola Voli - Passing Bawah"
+                    placeholder="Contoh: Refleksi Pembelajaran Bola Voli"
                     className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-teal-400"
                   />
                 </div>
 
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700">Sub Judul (Opsional)</label>
+                  <input
+                    type="text"
+                    value={formSubJudul}
+                    onChange={(e) => setFormSubJudul(e.target.value)}
+                    placeholder="Contoh: Evaluasi Mandiri Passing Bawah & Kerjasama Tim"
+                    className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-teal-400"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-slate-700">Materi Terkait</label>
                   <input
                     type="text"
                     value={formMateriJudul}
                     onChange={(e) => setFormMateriJudul(e.target.value)}
-                    placeholder="Contoh: Bola Voli / Kebugaran Jasmani"
+                    placeholder="Contoh: Permainan Bola Voli / Kebugaran Jasmani"
                     className="w-full text-xs p-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-teal-400"
                   />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-700">Status Publikasi</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setFormStatusPublikasi('Publish')}
+                      className={`p-2 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                        formStatusPublikasi === 'Publish'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-300 ring-2 ring-emerald-200'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Terbitkan</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setFormStatusPublikasi('Draft')}
+                      className={`p-2 rounded-xl text-xs font-bold border transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                        formStatusPublikasi === 'Draft'
+                          ? 'bg-amber-50 text-amber-800 border-amber-300 ring-2 ring-amber-200'
+                          : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                      }`}
+                    >
+                      <Clock className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Draf (Simpan Saja)</span>
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -762,9 +909,9 @@ export const GuruRefleksi: React.FC<GuruRefleksiProps> = ({ db, currentUser }) =
                 </button>
                 <button
                   type="submit"
-                  className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-teal-600 hover:bg-teal-500 shadow-sm"
+                  className="px-6 py-2.5 rounded-xl text-xs font-bold text-white bg-teal-600 hover:bg-teal-500 shadow-sm cursor-pointer"
                 >
-                  Simpan & Terbitkan Kuesioner
+                  {formStatusPublikasi === 'Draft' ? 'Simpan Sebagai Draf' : 'Simpan & Terbitkan Refleksi'}
                 </button>
               </div>
             </form>

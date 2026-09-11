@@ -86,6 +86,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: 'Laporan & Pengaturan',
       items: [
         { id: 'presensi', label: 'Presensi Siswa', icon: <CalendarCheck className="w-5 h-5" /> },
+        { id: 'rekap-absensi', label: 'Rekapan Absensi', icon: <FileSpreadsheet className="w-5 h-5 text-emerald-400" /> },
         { id: 'nilai', label: 'Penilaian & Rapor', icon: <Award className="w-5 h-5" /> },
         { id: 'settings', label: 'Pengaturan Sistem', icon: <Settings className="w-5 h-5" /> },
       ],
@@ -113,7 +114,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: 'praktik', label: 'Penilaian Praktik', icon: <Activity className="w-5 h-5" /> },
         { id: 'refleksi', label: 'Refleksi Pembelajaran', icon: <Sparkles className="w-5 h-5" /> },
-        { id: 'presensi', label: 'Presensi Kelas', icon: <UserCheck className="w-5 h-5" /> },
+        { id: 'presensi', label: 'Presensi Siswa', icon: <UserCheck className="w-5 h-5" /> },
+        { id: 'rekap-absensi', label: 'Rekapan Absensi', icon: <FileSpreadsheet className="w-5 h-5 text-emerald-400" /> },
         { id: 'nilai', label: 'Rekap Nilai Siswa', icon: <Award className="w-5 h-5" /> },
         { id: 'jurnal', label: 'Jurnal Mengajar', icon: <FileText className="w-5 h-5" /> },
       ],

@@ -35,6 +35,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ db, currentUser }) => 
   const [selectedTab, setSelectedTab] = useState<'quiz' | 'hasil'>('quiz');
   const [selectedQuizId, setSelectedQuizId] = useState<string>('Semua');
   const [selectedKelasId, setSelectedKelasId] = useState<string>('Semua');
+  const [filterPublikasi, setFilterPublikasi] = useState<'Semua' | 'Publish' | 'Draft'>('Semua');
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Modals & detail view
@@ -131,6 +132,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ db, currentUser }) => 
   const filteredQuiz = db.quiz.filter((q) => {
     const matchQuery =
       q.judul.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (q.subJudul && q.subJudul.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (q.materiJudul && q.materiJudul.toLowerCase().includes(searchQuery.toLowerCase()));
 
     const matchKelas =
@@ -139,8 +141,31 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ db, currentUser }) => 
       q.kelasIds.length === 0 ||
       q.kelasIds.includes(selectedKelasId);
 
-    return matchQuery && matchKelas;
+    const isDraft = q.status === 'Draft' || q.statusPublikasi === 'Draft';
+    const matchPublikasi =
+      filterPublikasi === 'Semua' ||
+      (filterPublikasi === 'Draft' && isDraft) ||
+      (filterPublikasi === 'Publish' && !isDraft);
+
+    return matchQuery && matchKelas && matchPublikasi;
   });
+
+  const handleTogglePublikasi = (q: Quiz) => {
+    const isDraft = q.status === 'Draft' || q.statusPublikasi === 'Draft';
+    const newStatus = isDraft ? 'Publish' : 'Draft';
+    dataStorage.updateDatabase((prev) => ({
+      ...prev,
+      quiz: prev.quiz.map((item) =>
+        item.id === q.id
+          ? {
+              ...item,
+              status: newStatus as any,
+              statusPublikasi: newStatus as any,
+            }
+          : item
+      ),
+    }));
+  };
 
   // Filter student quiz attempts
   const filteredHasil = db.jawabanQuiz.filter((j) => {
@@ -210,6 +235,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ db, currentUser }) => 
       bobot: s.bobot || Math.round(100 / (form.soal?.length || 1)),
     }));
 
+    const finalStatus = form.status === 'Draft' || form.statusPublikasi === 'Draft' ? 'Draft' : 'Publish';
+
     if (editingQuiz) {
       dataStorage.updateDatabase((prev) => ({
         ...prev,
@@ -218,6 +245,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ db, currentUser }) => 
             ? ({
                 ...item,
                 ...form,
+                status: finalStatus as any,
+                statusPublikasi: finalStatus as any,
                 soal: currentQuestions,
                 soalList: currentQuestions,
               } as Quiz)
@@ -228,13 +257,15 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ db, currentUser }) => 
       const newQ: Quiz = {
         id: `qz-${Date.now()}`,
         judul: form.judul || 'Quiz Baru',
+        subJudul: form.subJudul || '',
         materiJudul: form.materiJudul || 'Materi PJOK',
         durasiMenit: Number(form.durasiMenit) || 20,
         acakSoal: Boolean(form.acakSoal),
         acakJawaban: Boolean(form.acakJawaban),
         tampilkanPembahasan: Boolean(form.tampilkanPembahasan),
         kelasIds: form.kelasIds && form.kelasIds.length > 0 ? form.kelasIds : db.kelas.map((k) => k.id),
-        status: 'Publish',
+        status: finalStatus,
+        statusPublikasi: finalStatus,
         dibuatOleh: currentUser.name,
         guruNama: currentUser.name,
         soal: currentQuestions,
@@ -480,6 +511,16 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ db, currentUser }) => 
             />
           </div>
           <select
+            value={filterPublikasi}
+            onChange={(e) => setFilterPublikasi(e.target.value as any)}
+            className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700"
+          >
+            <option value="Semua">Semua Status Publikasi</option>
+            <option value="Publish">🟢 Diterbitkan (Publish)</option>
+            <option value="Draft">🟡 Draft (Belum Terbit)</option>
+          </select>
+
+          <select
             value={selectedKelasId}
             onChange={(e) => setSelectedKelasId(e.target.value)}
             className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-700"
@@ -516,11 +557,14 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ db, currentUser }) => 
               {filteredQuiz.map((q) => {
                 const questionList = q.soal || q.soalList || [];
                 const attempts = db.jawabanQuiz.filter((j) => j.quizId === q.id);
+                const isDraft = q.status === 'Draft' || q.statusPublikasi === 'Draft';
 
                 return (
                   <div
                     key={q.id}
-                    className="bg-white rounded-2xl p-5 border border-slate-200/80 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between space-y-4"
+                    className={`bg-white rounded-2xl p-5 border transition-all flex flex-col justify-between space-y-4 shadow-2xs hover:shadow-md ${
+                      isDraft ? 'border-amber-200/80 bg-amber-50/10' : 'border-slate-200/80'
+                    }`}
                   >
                     <div className="space-y-3">
                       <div className="flex items-start justify-between gap-3">
@@ -528,6 +572,20 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ db, currentUser }) => 
                           <span className="px-2.5 py-0.5 bg-purple-50 text-purple-800 border border-purple-200 rounded-lg text-[10px] font-extrabold">
                             {questionList.length} Butir Soal
                           </span>
+
+                          {/* Status Publikasi Badge */}
+                          {!isDraft ? (
+                            <span className="px-2.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-[10px] font-extrabold flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              Terbit (Publish)
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-0.5 bg-amber-50 text-amber-800 border border-amber-300 rounded-lg text-[10px] font-extrabold flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-amber-600" />
+                              Draft
+                            </span>
+                          )}
+
                           <span className="text-[10px] text-slate-600 flex items-center gap-1 font-semibold bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-200">
                             <Clock className="w-3 h-3 text-slate-400" />
                             {q.durasiMenit || 20} Menit
@@ -539,7 +597,18 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ db, currentUser }) => 
                           )}
                         </div>
 
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleTogglePublikasi(q)}
+                            className={`px-2 py-1 text-[10px] font-bold rounded-lg border transition-colors ${
+                              isDraft
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100'
+                                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200'
+                            }`}
+                            title={isDraft ? 'Publikasikan ke siswa sekarang' : 'Kembalikan ke status Draft'}
+                          >
+                            {isDraft ? 'Terbitkan' : 'Jadikan Draft'}
+                          </button>
                           <button
                             onClick={() => handleOpenEdit(q)}
                             className="p-1.5 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg transition-colors"
@@ -561,8 +630,13 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ db, currentUser }) => 
                         <h3 className="font-extrabold text-base text-slate-800 leading-snug">
                           {q.judul}
                         </h3>
+                        {q.subJudul && (
+                          <p className="text-xs text-purple-700 font-bold mt-1">
+                            {q.subJudul}
+                          </p>
+                        )}
                         {q.materiJudul && (
-                          <p className="text-xs text-purple-700 font-semibold mt-1">
+                          <p className="text-xs text-slate-500 font-medium mt-0.5">
                             Materi: {q.materiJudul}
                           </p>
                         )}
@@ -802,6 +876,67 @@ export const QuizManager: React.FC<QuizManagerProps> = ({ db, currentUser }) => 
                   onChange={(e) => setForm({ ...form, judul: e.target.value })}
                   className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-purple-500/20"
                 />
+              </div>
+
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">Sub Judul Quiz (Opsional)</label>
+                <input
+                  type="text"
+                  placeholder="Misal: Evaluasi Pemahaman Mandiri Bab Permainan Bola Besar"
+                  value={form.subJudul || ''}
+                  onChange={(e) => setForm({ ...form, subJudul: e.target.value })}
+                  className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-purple-500/20"
+                />
+              </div>
+
+              {/* Status Publikasi Selector */}
+              <div>
+                <label className="block font-bold text-slate-700 mb-1.5">Status Publikasi</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <label
+                    className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${
+                      form.status !== 'Draft' && form.statusPublikasi !== 'Draft'
+                        ? 'bg-emerald-50/70 border-emerald-400 text-emerald-950 ring-2 ring-emerald-400/30'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="statusPublikasiQuiz"
+                      checked={form.status !== 'Draft' && form.statusPublikasi !== 'Draft'}
+                      onChange={() => setForm({ ...form, status: 'Publish', statusPublikasi: 'Publish' })}
+                      className="text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <div>
+                      <p className="font-extrabold text-xs flex items-center gap-1 text-emerald-800">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> Terbitkan (Publish)
+                      </p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Siswa dapat langsung melihat & mengerjakan quiz</p>
+                    </div>
+                  </label>
+
+                  <label
+                    className={`flex items-center gap-2 p-3 rounded-xl border cursor-pointer transition-all ${
+                      form.status === 'Draft' || form.statusPublikasi === 'Draft'
+                        ? 'bg-amber-50/70 border-amber-400 text-amber-950 ring-2 ring-amber-400/30'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="statusPublikasiQuiz"
+                      checked={form.status === 'Draft' || form.statusPublikasi === 'Draft'}
+                      onChange={() => setForm({ ...form, status: 'Draft', statusPublikasi: 'Draft' })}
+                      className="text-amber-600 focus:ring-amber-500"
+                    />
+                    <div>
+                      <p className="font-extrabold text-xs flex items-center gap-1 text-amber-800">
+                        <Clock className="w-3.5 h-3.5 text-amber-600" /> Simpan Draft
+                      </p>
+                      <p className="text-[10px] text-slate-500 mt-0.5">Disimpan sebagai draf, belum dapat dilihat siswa</p>
+                    </div>
+                  </label>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

@@ -200,30 +200,41 @@ export function MuridQuiz({ currentUser, db }: MuridQuizProps) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {(db.quiz || []).map((q) => {
-              const qCount = q.soal?.length || q.soalList?.length || 0;
-              const hasTaken = (db.jawabanQuiz || []).find(
-                (j) => j.quizId === q.id && j.muridId === currentUser.id
-              );
+            {(db.quiz || [])
+              .filter((q) => {
+                if (q.status === 'Draft' || q.statusPublikasi === 'Draft') return false;
+                if (q.status && q.status !== 'Publish' && q.status !== 'Aktif' && q.statusPublikasi !== 'Publish') return false;
+                return true;
+              })
+              .map((q) => {
+                const qCount = q.soal?.length || q.soalList?.length || 0;
+                const hasTaken = (db.jawabanQuiz || []).find(
+                  (j) => j.quizId === q.id && j.muridId === currentUser.id
+                );
 
-              return (
-                <div
-                  key={q.id}
-                  className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs hover:shadow-md transition-all space-y-4 flex flex-col justify-between"
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="px-2.5 py-1 bg-purple-50 text-purple-700 font-extrabold text-[10px] rounded-lg">
-                        {q.materiJudul || 'PJOK Teori & Praktik'}
-                      </span>
-                      {hasTaken && (
-                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded text-[10px]">
-                          Nilai: {hasTaken.nilai}
+                return (
+                  <div
+                    key={q.id}
+                    className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs hover:shadow-md transition-all space-y-4 flex flex-col justify-between"
+                  >
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="px-2.5 py-1 bg-purple-50 text-purple-700 font-extrabold text-[10px] rounded-lg">
+                          {q.materiJudul || 'PJOK Teori & Praktik'}
                         </span>
-                      )}
+                        {hasTaken && (
+                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 font-bold rounded text-[10px]">
+                            Nilai: {hasTaken.nilai}
+                          </span>
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="font-extrabold text-slate-800 text-sm leading-snug">{q.judul}</h3>
+                        {q.subJudul && (
+                          <p className="text-xs text-purple-700 font-bold mt-0.5">{q.subJudul}</p>
+                        )}
+                      </div>
                     </div>
-                    <h3 className="font-extrabold text-slate-800 text-sm leading-snug">{q.judul}</h3>
-                  </div>
 
                   <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
                     <div className="flex items-center gap-3 text-slate-500 text-[11px]">

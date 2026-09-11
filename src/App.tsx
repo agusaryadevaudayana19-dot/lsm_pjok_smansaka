@@ -155,7 +155,9 @@ export default function App() {
         case 'jurnal':
           return <JurnalMengajarView db={db} currentUser={currentUser} />;
         case 'presensi':
-          return <AttendanceManager db={db} role="ADMIN" currentUser={currentUser} />;
+          return <AttendanceManager db={db} role="ADMIN" currentUser={currentUser} initialTab="harian" />;
+        case 'rekap-absensi':
+          return <AttendanceManager db={db} role="ADMIN" currentUser={currentUser} initialTab="rekap" />;
         case 'nilai':
           return (
             <GradesReport
@@ -202,7 +204,9 @@ export default function App() {
         case 'refleksi':
           return <GuruRefleksi db={db} currentUser={currentUser} />;
         case 'presensi':
-          return <AttendanceManager db={db} role="GURU" currentUser={currentUser} />;
+          return <AttendanceManager db={db} role="GURU" currentUser={currentUser} initialTab="harian" />;
+        case 'rekap-absensi':
+          return <AttendanceManager db={db} role="GURU" currentUser={currentUser} initialTab="rekap" />;
         case 'nilai':
           return (
             <GradesReport

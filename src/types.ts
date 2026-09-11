@@ -44,6 +44,7 @@ export interface MataPelajaran {
 export interface Materi {
   id: string;
   judul: string;
+  subJudul?: string;
   kategori: string; // e.g. "Bola Voli", "Bulutangkis", "Atletik", "Kebugaran Jasmani", "Senam"
   kelasId?: string;
   kelasNama?: string;
@@ -55,7 +56,21 @@ export interface Materi {
   materiInti?: string; // Materi Inti (penjelasan mendalam & tahapan gerak)
   kontenTeks?: string; // Dukungan teks konten tambahan / alias
   konten?: string;
+  subMateriList?: {
+    id: string;
+    judul: string;
+    subJudul?: string;
+    konten?: string;
+    durasi?: string;
+  }[];
+  kolomKustom?: {
+    id: string;
+    label: string;
+    subJudul?: string;
+    isi: string;
+  }[];
   status?: 'Publish' | 'Draft' | 'Arsip';
+  statusPublikasi?: 'Publish' | 'Draft';
   videoUrl?: string;
   gambarUrl?: string;
   pdfUrl?: string;
@@ -72,6 +87,7 @@ export interface Materi {
 export interface Tugas {
   id: string;
   judul: string;
+  subJudul?: string;
   materiId?: string;
   materiJudul?: string;
   kategori?: string;
@@ -84,6 +100,7 @@ export interface Tugas {
   fileLampiran?: string;
   jenisPengumpulan?: 'Teks' | 'Video/Foto' | 'Dokumen';
   status: 'Aktif' | 'Selesai' | 'Publish' | 'Draft';
+  statusPublikasi?: 'Publish' | 'Draft';
   dibuatOleh?: string;
   guruId?: string;
   guruNama?: string;
@@ -144,6 +161,7 @@ export type SoalQuiz = Soal;
 export interface Quiz {
   id: string;
   judul: string;
+  subJudul?: string;
   materiId?: string;
   materiJudul?: string;
   kelasId?: string;
@@ -161,6 +179,7 @@ export interface Quiz {
   dibuatOleh?: string;
   dibuatPada?: string;
   status?: 'Publish' | 'Draft' | 'Arsip';
+  statusPublikasi?: 'Publish' | 'Draft';
   soalList?: Soal[];
   soal?: Soal[];
 }
@@ -192,6 +211,13 @@ export interface RubrikPraktik {
   kerjaSama: number;
 }
 
+export interface IndikatorPraktik {
+  id: string;
+  nama: string;
+  deskripsi?: string;
+  skor: number; // 1 | 2 | 3 | 4
+}
+
 export interface PenilaianPraktik {
   id: string;
   kelasId: string;
@@ -201,6 +227,8 @@ export interface PenilaianPraktik {
   muridId: string;
   muridNama: string;
   tanggal: string;
+  statusPublikasi?: 'Publish' | 'Draft';
+  indikatorPenilaian?: IndikatorPraktik[];
   aspekNilai?: {
     sikapAwal: SkalaPraktik;
     teknikGerakan: SkalaPraktik;
@@ -290,6 +318,7 @@ export interface SoalRefleksi {
 export interface RefleksiPembelajaran {
   id: string;
   judul: string;
+  subJudul?: string;
   deskripsi?: string;
   materiId?: string;
   materiJudul?: string;
@@ -300,7 +329,8 @@ export interface RefleksiPembelajaran {
   guruNama: string;
   tanggalDibuat: string;
   deadline?: string;
-  status: 'Aktif' | 'Ditutup';
+  status: 'Aktif' | 'Ditutup' | 'Publish' | 'Draft';
+  statusPublikasi?: 'Publish' | 'Draft';
   soalList: SoalRefleksi[];
 }
 

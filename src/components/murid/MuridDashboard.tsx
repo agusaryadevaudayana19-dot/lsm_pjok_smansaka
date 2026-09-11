@@ -40,9 +40,13 @@ export const MuridDashboard: React.FC<MuridDashboardProps> = ({ db, currentUser,
 
   // Active reflections from teachers
   const myRefleksiList = (db.refleksi || []).filter((r) => {
-    if (r.status !== 'Publish') return false;
-    if (r.targetKelasId && r.targetKelasId !== 'ALL' && r.targetKelasId !== myKelasId) return false;
-    return true;
+    if (r.status === 'Draft' || r.statusPublikasi === 'Draft') return false;
+    const studentKelas = (currentUser.kelasId || '').toLowerCase().trim();
+    const studentKelasObj = (db.kelas || []).find((k) => k.id === currentUser.kelasId);
+    const studentKelasNama = (studentKelasObj?.nama || '').toLowerCase().trim();
+    const targetK = (r.kelasId || r.targetKelasId || 'ALL').toLowerCase().trim();
+    if (targetK === 'all') return true;
+    return targetK === studentKelas || (studentKelasNama && targetK === studentKelasNama);
   });
   const myAnsweredRefleksiIds = new Set(
     (db.jawabanRefleksi || [])

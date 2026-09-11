@@ -182,6 +182,9 @@ export const MuridMateri: React.FC<MuridMateriProps> = ({ db, currentUser, initi
 
                 <div>
                   <h3 className="font-extrabold text-sm text-slate-800 leading-snug">{m.judul}</h3>
+                  {m.subJudul && (
+                    <p className="text-xs font-bold text-emerald-700 mt-0.5">{m.subJudul}</p>
+                  )}
                 </div>
 
                 {/* 1. Capaian & Tujuan Pembelajaran (Paling di atas) */}
@@ -216,6 +219,28 @@ export const MuridMateri: React.FC<MuridMateriProps> = ({ db, currentUser, initi
                     <p className="line-clamp-2 leading-relaxed text-indigo-900/80">
                       {materiIntiText.replace(/###|\*\*|#/g, '')}
                     </p>
+                  </div>
+                )}
+
+                {/* 4. Kolom & Sub-Materi Tambahan jika ada */}
+                {m.kolomKustom && m.kolomKustom.length > 0 && (
+                  <div className="p-2.5 bg-amber-50/60 rounded-xl border border-amber-200/80 text-[11px] text-amber-950 space-y-1.5">
+                    <div className="flex items-center justify-between text-[10px] font-bold text-amber-900">
+                      <span className="flex items-center gap-1">
+                        <Layers className="w-3.5 h-3.5 text-amber-600" />
+                        <span>{m.kolomKustom.length} Sub-Materi / Kolom Tambahan</span>
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      {m.kolomKustom.map((col, idx) => (
+                        <span
+                          key={col.id || idx}
+                          className="px-2 py-0.5 bg-white border border-amber-200 rounded-md text-[10px] font-semibold text-amber-900"
+                        >
+                          {col.label} {col.subJudul ? `• ${col.subJudul}` : ''}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -291,6 +316,11 @@ export const MuridMateri: React.FC<MuridMateriProps> = ({ db, currentUser, initi
                 <h3 className="text-base sm:text-lg font-black text-slate-800 mt-2">
                   {activeMateri.judul}
                 </h3>
+                {activeMateri.subJudul && (
+                  <p className="text-xs font-bold text-emerald-700 mt-0.5">
+                    {activeMateri.subJudul}
+                  </p>
+                )}
                 <p className="text-[11px] text-slate-400 mt-0.5">
                   Pengampu:{' '}
                   <span className="font-semibold text-slate-600">

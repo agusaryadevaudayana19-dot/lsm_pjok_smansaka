@@ -32,6 +32,7 @@ interface AttendanceManagerProps {
   db: LMSDatabase;
   role: UserRole;
   currentUser: User;
+  initialTab?: 'harian' | 'rekap';
 }
 
 interface StatusConfig {
@@ -106,14 +107,25 @@ const DEFAULT_KETERANGAN: Record<StatusPresensi, string> = {
   T: 'Terlambat',
 };
 
-export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ db, role, currentUser }) => {
+export const AttendanceManager: React.FC<AttendanceManagerProps> = ({
+  db,
+  role,
+  currentUser,
+  initialTab = 'harian',
+}) => {
   const [selectedKelasId, setSelectedKelasId] = useState<string>(
     db.kelas.length > 0 ? db.kelas[0].id : 'cls-xi-1'
   );
   const [selectedTanggal, setSelectedTanggal] = useState<string>(
     new Date().toISOString().slice(0, 10)
   );
-  const [mainTab, setMainTab] = useState<'harian' | 'rekap'>('harian');
+  const [mainTab, setMainTab] = useState<'harian' | 'rekap'>(initialTab);
+
+  useEffect(() => {
+    if (initialTab) {
+      setMainTab(initialTab);
+    }
+  }, [initialTab]);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | StatusPresensi>('ALL');
 

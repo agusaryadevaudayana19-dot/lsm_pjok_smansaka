@@ -22,6 +22,7 @@ import {
   Zap,
   X,
   FileSpreadsheet,
+  Sparkles,
 } from 'lucide-react';
 import { UserRole } from '../types';
 
@@ -77,6 +78,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'tugas', label: 'Tugas PJOK', icon: <ClipboardList className="w-5 h-5" /> },
         { id: 'quiz', label: 'Quiz & Asesmen', icon: <CheckCircle className="w-5 h-5" /> },
         { id: 'praktik', label: 'Penilaian Praktik', icon: <Activity className="w-5 h-5" /> },
+        { id: 'refleksi', label: 'Refleksi Pembelajaran', icon: <Sparkles className="w-5 h-5" /> },
         { id: 'jurnal', label: 'Jurnal Mengajar', icon: <FileText className="w-5 h-5" /> },
       ],
     },
@@ -110,6 +112,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: 'Penilaian & Jurnal',
       items: [
         { id: 'praktik', label: 'Penilaian Praktik', icon: <Activity className="w-5 h-5" /> },
+        { id: 'refleksi', label: 'Refleksi Pembelajaran', icon: <Sparkles className="w-5 h-5" /> },
         { id: 'presensi', label: 'Presensi Kelas', icon: <UserCheck className="w-5 h-5" /> },
         { id: 'nilai', label: 'Rekap Nilai Siswa', icon: <Award className="w-5 h-5" /> },
         { id: 'jurnal', label: 'Jurnal Mengajar', icon: <FileText className="w-5 h-5" /> },
@@ -136,6 +139,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'materi-saya', label: 'Materi Pembelajaran', icon: <BookMarked className="w-5 h-5" /> },
         { id: 'tugas-saya', label: 'Tugas Saya', icon: <ClipboardList className="w-5 h-5" /> },
         { id: 'quiz-saya', label: 'Quiz & Asesmen', icon: <CheckCircle className="w-5 h-5" /> },
+        { id: 'refleksi-saya', label: 'Refleksi Belajar', icon: <Sparkles className="w-5 h-5" /> },
       ],
     },
     {

@@ -279,6 +279,54 @@ export interface RekapNilaiMurid {
 
 export type NilaiItem = RekapNilaiMurid;
 
+export interface SoalRefleksi {
+  id: string;
+  pertanyaan: string;
+  tipe: 'teks' | 'skala' | 'pilihan';
+  kategori?: 'pemahaman' | 'kesulitan' | 'perasaan' | 'tindak_lanjut';
+  opsi?: string[];
+}
+
+export interface RefleksiPembelajaran {
+  id: string;
+  judul: string;
+  deskripsi?: string;
+  materiId?: string;
+  materiJudul?: string;
+  kelasIds?: string[];
+  kelasId?: string;
+  targetKelasId?: string;
+  guruId: string;
+  guruNama: string;
+  tanggalDibuat: string;
+  deadline?: string;
+  status: 'Aktif' | 'Ditutup';
+  soalList: SoalRefleksi[];
+}
+
+export interface JawabanRefleksiMurid {
+  id: string;
+  refleksiId: string;
+  refleksiJudul?: string;
+  muridId: string;
+  muridNama: string;
+  kelasId: string;
+  kelasNama?: string;
+  tanggalIsi?: string;
+  tanggalDiisi?: string;
+  skalaEmosi?: 'sangat_senang' | 'senang' | 'netral' | 'kesulitan';
+  mood?: string;
+  jawaban: {
+    soalId: string;
+    pertanyaan: string;
+    jawaban?: any;
+    jawabanTeks?: string;
+    nilaiSkala?: number;
+  }[];
+  catatanGuru?: string;
+  tanggalTanggapanGuru?: string;
+}
+
 export interface NotifikasiItem {
   id: string;
   judul: string;

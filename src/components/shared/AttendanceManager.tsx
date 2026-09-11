@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { PresensiRecord, StatusPresensi, User, UserRole } from '../../types';
 import { dataStorage, LMSDatabase } from '../../services/dataStorage';
+import { RekapPresensiTable } from './RekapPresensiTable';
 
 interface AttendanceManagerProps {
   db: LMSDatabase;
@@ -112,6 +113,7 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ db, role, 
   const [selectedTanggal, setSelectedTanggal] = useState<string>(
     new Date().toISOString().slice(0, 10)
   );
+  const [mainTab, setMainTab] = useState<'harian' | 'rekap'>('harian');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | StatusPresensi>('ALL');
 
@@ -354,8 +356,56 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ db, role, 
         </div>
       )}
 
-      {/* Top Header Banner - Mobile-Optimized */}
-      <div className="bg-gradient-to-br from-blue-900 via-indigo-950 to-slate-950 rounded-2xl sm:rounded-3xl p-4 sm:p-6 text-white shadow-lg relative overflow-hidden">
+      {/* Tab Switcher: Input Harian vs Rekapan Absensi */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 p-1.5 bg-slate-200/90 rounded-2xl shadow-xs border border-slate-300/60">
+        <div className="flex items-center gap-1.5 flex-1">
+          <button
+            type="button"
+            onClick={() => setMainTab('harian')}
+            className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+              mainTab === 'harian'
+                ? 'bg-white text-blue-950 shadow-sm ring-1 ring-slate-300'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'
+            }`}
+          >
+            <CalendarCheck className="w-4 h-4 text-blue-600" />
+            <span>Input Presensi Harian</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setMainTab('rekap')}
+            className={`flex-1 sm:flex-none px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+              mainTab === 'rekap'
+                ? 'bg-white text-indigo-950 shadow-sm ring-2 ring-indigo-400 font-black'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/40'
+            }`}
+          >
+            <TableIcon className="w-4 h-4 text-indigo-600" />
+            <span>📊 Rekapan Absensi & Rekapitulasi</span>
+          </button>
+        </div>
+
+        <div className="px-3 py-1 bg-white/70 rounded-xl text-[11px] font-semibold text-slate-600 flex items-center justify-between sm:justify-start gap-2">
+          <span>Rombel Aktif:</span>
+          <span className="font-extrabold text-blue-900">Kelas {selectedKelasObj?.nama || selectedKelasId}</span>
+        </div>
+      </div>
+
+      {mainTab === 'rekap' ? (
+        <RekapPresensiTable
+          db={db}
+          selectedKelasId={selectedKelasId}
+          onSelectKelasId={setSelectedKelasId}
+          currentUser={currentUser}
+          onSwitchToInputHarian={(tgl) => {
+            if (tgl) setSelectedTanggal(tgl);
+            setMainTab('harian');
+          }}
+        />
+      ) : (
+        <>
+          {/* Top Header Banner - Mobile-Optimized */}
+          <div className="bg-gradient-to-br from-blue-900 via-indigo-950 to-slate-950 rounded-2xl sm:rounded-3xl p-4 sm:p-6 text-white shadow-lg relative overflow-hidden">
         <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
           <div className="space-y-1">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 bg-white/10 rounded-full text-[11px] font-semibold text-blue-200 backdrop-blur-xs">
@@ -1217,6 +1267,8 @@ export const AttendanceManager: React.FC<AttendanceManagerProps> = ({ db, role, 
           </div>
         </div>
       </div>
+        </>
+      )}
 
       {/* MODAL KONFIRMASI RESET ABSENSI KE NOL */}
       {showResetAbsensiModal && (

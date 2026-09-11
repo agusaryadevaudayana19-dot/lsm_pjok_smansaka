@@ -17,6 +17,7 @@ import { SchoolSettings } from './components/admin/SchoolSettings';
 import { GuruDashboard } from './components/guru/GuruDashboard';
 import { GuruDataMurid } from './components/guru/GuruDataMurid';
 import { JurnalMengajarView } from './components/guru/JurnalMengajar';
+import { GuruRefleksi } from './components/guru/GuruRefleksi';
 
 // Student Components
 import { MuridDashboard } from './components/murid/MuridDashboard';
@@ -26,6 +27,7 @@ import { MuridQuiz } from './components/murid/MuridQuiz';
 import { MuridNilai } from './components/murid/MuridNilai';
 import { MuridPresensi } from './components/murid/MuridPresensi';
 import { MuridProfil } from './components/murid/MuridProfil';
+import { MuridRefleksi } from './components/murid/MuridRefleksi';
 
 // Shared Components
 import { MateriManager } from './components/shared/MateriManager';
@@ -148,6 +150,8 @@ export default function App() {
           return <QuizManager db={db} currentUser={currentUser} />;
         case 'praktik':
           return <PraktikAssessment db={db} currentUser={currentUser} />;
+        case 'refleksi':
+          return <GuruRefleksi db={db} currentUser={currentUser} />;
         case 'jurnal':
           return <JurnalMengajarView db={db} currentUser={currentUser} />;
         case 'presensi':
@@ -195,6 +199,8 @@ export default function App() {
           return <QuizManager db={db} currentUser={currentUser} />;
         case 'praktik':
           return <PraktikAssessment db={db} currentUser={currentUser} />;
+        case 'refleksi':
+          return <GuruRefleksi db={db} currentUser={currentUser} />;
         case 'presensi':
           return <AttendanceManager db={db} role="GURU" currentUser={currentUser} />;
         case 'nilai':
@@ -230,6 +236,8 @@ export default function App() {
           return <MuridTugas db={db} currentUser={currentUser} />;
         case 'quiz-saya':
           return <MuridQuiz db={db} currentUser={currentUser} />;
+        case 'refleksi-saya':
+          return <MuridRefleksi db={db} currentUser={currentUser} />;
         case 'nilai-saya':
           return <MuridNilai db={db} currentUser={currentUser} />;
         case 'presensi-saya':

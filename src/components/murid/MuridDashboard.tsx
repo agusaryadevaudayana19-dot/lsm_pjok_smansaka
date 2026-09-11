@@ -38,6 +38,19 @@ export const MuridDashboard: React.FC<MuridDashboardProps> = ({ db, currentUser,
   // Active quiz
   const quizAktif = db.quiz || [];
 
+  // Active reflections from teachers
+  const myRefleksiList = (db.refleksi || []).filter((r) => {
+    if (r.status !== 'Publish') return false;
+    if (r.targetKelasId && r.targetKelasId !== 'ALL' && r.targetKelasId !== myKelasId) return false;
+    return true;
+  });
+  const myAnsweredRefleksiIds = new Set(
+    (db.jawabanRefleksi || [])
+      .filter((j) => j.muridId === currentUser.id)
+      .map((j) => j.refleksiId)
+  );
+  const refleksiBelumIsi = myRefleksiList.filter((r) => !myAnsweredRefleksiIds.has(r.id));
+
   // Student grades
   const nilaiSaya = (db.nilai || []).find((n) => n.muridId === currentUser.id) || {
     tugas: 85,
@@ -87,6 +100,13 @@ export const MuridDashboard: React.FC<MuridDashboardProps> = ({ db, currentUser,
             >
               <ClipboardList className="w-4 h-4" />
               Lihat Tugas ({tugasBelum.length} Belum Kumpul)
+            </button>
+            <button
+              onClick={() => onNavigate('refleksi-saya')}
+              className="px-4 py-2 bg-amber-400 hover:bg-amber-300 text-slate-900 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 shadow-xs"
+            >
+              <Sparkles className="w-4 h-4 text-amber-900" />
+              Isi Refleksi Belajar {refleksiBelumIsi.length > 0 && `(${refleksiBelumIsi.length} Baru)`}
             </button>
           </div>
         </div>

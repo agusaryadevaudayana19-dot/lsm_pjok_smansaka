@@ -15,6 +15,9 @@ import {
   RekapNilaiMurid,
   PengaturanSekolah,
   SpreadsheetSyncLog,
+  RefleksiPembelajaran,
+  JawabanRefleksiMurid,
+  SoalRefleksi,
 } from '../types';
 import {
   collection,
@@ -53,6 +56,9 @@ export interface LMSDatabase {
   notifikasi: NotifikasiItem[];
   nilai: RekapNilaiMurid[];
   settings: PengaturanSekolah;
+  refleksi?: RefleksiPembelajaran[];
+  jawabanRefleksi?: JawabanRefleksiMurid[];
+  materiPraktikList?: string[];
   isCleanSlate?: boolean;
   cleanSlateTimestamp?: string;
   isNilaiPresensiReset?: boolean;
@@ -541,6 +547,79 @@ Zona Latihan Efektif: 65% - 85% dari DNM.`,
     },
   ],
   nilai: [],
+  refleksi: [
+    {
+      id: 'ref-1',
+      judul: 'Refleksi Pembelajaran: Teknik Passing Bola Voli',
+      deskripsi: 'Evaluasi pemahaman, rasa percaya diri, dan tantangan yang dihadapi murid setelah praktik passing bola voli.',
+      materiId: 'mat-1',
+      materiJudul: 'Permainan Bola Voli - Passing Bawah & Atas',
+      kelasIds: ['cls-xi-1', 'cls-xi-2', 'cls-xi-3', 'cls-xi-4', 'cls-xi-5', 'cls-xi-6', 'cls-xi-7'],
+      guruId: 'usr-guru-1',
+      guruNama: 'Haryono, S.Pd.Jas, M.Or.',
+      tanggalDibuat: '2026-09-08',
+      status: 'Aktif',
+      soalList: [
+        {
+          id: 'sq-1',
+          pertanyaan: 'Seberapa yakin dan nyaman kamu dalam mengarahkan bola saat melakukan passing bawah hari ini?',
+          tipe: 'skala',
+          kategori: 'perasaan',
+        },
+        {
+          id: 'sq-2',
+          pertanyaan: 'Bagian gerakan mana yang menurutmu paling menantang (posisi kaki, ayunan lengan, atau perkenaan bola)?',
+          tipe: 'teks',
+          kategori: 'kesulitan',
+        },
+        {
+          id: 'sq-3',
+          pertanyaan: 'Bagaimana komunikasi dan kerjasama dengan teman satu tim saat bermain reli operan bola?',
+          tipe: 'teks',
+          kategori: 'pemahaman',
+        },
+        {
+          id: 'sq-4',
+          pertanyaan: 'Apa target atau latihan yang ingin kamu coba mandiri untuk meningkatkan kualitas operanmu?',
+          tipe: 'teks',
+          kategori: 'tindak_lanjut',
+        },
+      ],
+    },
+    {
+      id: 'ref-2',
+      judul: 'Refleksi Kebugaran Jasmani & Kerjasama Tim',
+      deskripsi: 'Refleksi kesadaran pola hidup bugar dan sportivitas dalam kegiatan olahraga kelompok.',
+      kelasIds: ['cls-xi-1', 'cls-xi-2', 'cls-xi-3', 'cls-xi-4', 'cls-xi-5', 'cls-xi-6', 'cls-xi-7'],
+      guruId: 'usr-guru-1',
+      guruNama: 'Haryono, S.Pd.Jas, M.Or.',
+      tanggalDibuat: '2026-09-09',
+      status: 'Aktif',
+      soalList: [
+        {
+          id: 'sq-5',
+          pertanyaan: 'Seberapa bugar dan bersemangat energimu setelah menyelesaikan sesi pemanasan dan latihan kebugaran?',
+          tipe: 'skala',
+          kategori: 'perasaan',
+        },
+        {
+          id: 'sq-6',
+          pertanyaan: 'Tuliskan satu komitmen kebiasaan gerak aktif/sehat yang akan kamu jalani setiap hari di rumah!',
+          tipe: 'teks',
+          kategori: 'tindak_lanjut',
+        },
+      ],
+    },
+  ],
+  jawabanRefleksi: [],
+  materiPraktikList: [
+    'Permainan Bola Voli - Passing Bawah & Atas',
+    'Permainan Sepak Bola - Dribbling & Passing',
+    'Bulutangkis - Servis Pendek & Smash',
+    'Senam Lantai - Roll Depan & Belakang',
+    'Kebugaran Jasmani - Tes MFT & Push Up',
+    'Atletik - Lari Cepat & Estafet',
+  ],
 };
 
 export type FirestoreSyncStatus = 'connecting' | 'synced' | 'syncing' | 'offline' | 'error';
@@ -752,6 +831,9 @@ class DataStorageService {
         'jurnal',
         'notifikasi',
         'nilai',
+        'refleksi',
+        'jawabanRefleksi',
+        'materiPraktikList',
       ];
 
       for (const sec of sections) {
@@ -803,6 +885,9 @@ class DataStorageService {
         'jurnal',
         'notifikasi',
         'nilai',
+        'refleksi',
+        'jawabanRefleksi',
+        'materiPraktikList',
       ];
 
       const changedSections = sections.filter((sec) => prev[sec] !== next[sec]);
@@ -1018,6 +1103,9 @@ class DataStorageService {
           jurnal: Array.isArray(parsed?.jurnal) ? parsed.jurnal : (isCleanSlate ? [] : INITIAL_DATABASE.jurnal),
           notifikasi: Array.isArray(parsed?.notifikasi) ? parsed.notifikasi : (isCleanSlate ? [] : INITIAL_DATABASE.notifikasi),
           nilai: loadedNilai,
+          refleksi: Array.isArray(parsed?.refleksi) ? parsed.refleksi : INITIAL_DATABASE.refleksi,
+          jawabanRefleksi: Array.isArray(parsed?.jawabanRefleksi) ? parsed.jawabanRefleksi : [],
+          materiPraktikList: Array.isArray(parsed?.materiPraktikList) ? parsed.materiPraktikList : INITIAL_DATABASE.materiPraktikList,
           isNilaiPresensiReset: parsed?.isNilaiPresensiReset ?? false,
         };
       }
@@ -1160,6 +1248,109 @@ class DataStorageService {
 
   public getQuizList(kelasId?: string): Quiz[] {
     return this.db.quiz.filter((q) => !kelasId || q.kelasId === kelasId);
+  }
+
+  // Refleksi helpers
+  public saveRefleksi(item: RefleksiPembelajaran) {
+    this.updateDatabase((prev) => {
+      const existingList = prev.refleksi || [];
+      const idx = existingList.findIndex((r) => r.id === item.id);
+      let updated: RefleksiPembelajaran[];
+      if (idx >= 0) {
+        updated = [...existingList];
+        updated[idx] = item;
+      } else {
+        updated = [item, ...existingList];
+      }
+      return {
+        ...prev,
+        refleksi: updated,
+      };
+    });
+  }
+
+  public deleteRefleksi(id: string) {
+    this.updateDatabase((prev) => ({
+      ...prev,
+      refleksi: (prev.refleksi || []).filter((r) => r.id !== id),
+      jawabanRefleksi: (prev.jawabanRefleksi || []).filter((j) => j.refleksiId !== id),
+    }));
+  }
+
+  public submitJawabanRefleksi(jawaban: JawabanRefleksiMurid) {
+    this.updateDatabase((prev) => {
+      const list = prev.jawabanRefleksi || [];
+      const existingIdx = list.findIndex(
+        (j) => j.refleksiId === jawaban.refleksiId && j.muridId === jawaban.muridId
+      );
+      let updated: JawabanRefleksiMurid[];
+      if (existingIdx >= 0) {
+        updated = [...list];
+        updated[existingIdx] = { ...list[existingIdx], ...jawaban };
+      } else {
+        updated = [jawaban, ...list];
+      }
+      return {
+        ...prev,
+        jawabanRefleksi: updated,
+      };
+    });
+  }
+
+  public tanggapiRefleksi(jawabanId: string, catatanGuru: string) {
+    this.updateDatabase((prev) => {
+      const list = (prev.jawabanRefleksi || []).map((j) => {
+        if (j.id === jawabanId) {
+          return {
+            ...j,
+            catatanGuru,
+            tanggalTanggapanGuru: new Date().toISOString().slice(0, 10),
+          };
+        }
+        return j;
+      });
+      return {
+        ...prev,
+        jawabanRefleksi: list,
+      };
+    });
+  }
+
+  // Materi Praktik & Penilaian Multi-Materi helpers
+  public addMateriPraktik(judulMateri: string) {
+    const trimmed = judulMateri.trim();
+    if (!trimmed) return;
+    this.updateDatabase((prev) => {
+      const current = prev.materiPraktikList || [];
+      if (current.includes(trimmed)) return prev;
+      return {
+        ...prev,
+        materiPraktikList: [...current, trimmed],
+      };
+    });
+  }
+
+  public savePenilaianPraktikBatch(newItems: PenilaianPraktik[]) {
+    this.updateDatabase((prev) => {
+      const existing = [...(prev.penilaianPraktik || [])];
+      newItems.forEach((newItem) => {
+        const targetMateri = newItem.materiJudul || newItem.materi || '';
+        const idx = existing.findIndex(
+          (p) =>
+            p.muridId === newItem.muridId &&
+            ((p.materiJudul || p.materi || '').trim().toLowerCase() === targetMateri.trim().toLowerCase())
+        );
+        if (idx >= 0) {
+          existing[idx] = newItem;
+        } else {
+          existing.push(newItem);
+        }
+      });
+      return {
+        ...prev,
+        penilaianPraktik: existing,
+      };
+    });
   }
 
   // CSV & Spreadsheet Integration Methods
